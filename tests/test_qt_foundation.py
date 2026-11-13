@@ -81,6 +81,15 @@ def test_list_and_combo_popup_use_theme_tokens(qapp: QApplication) -> None:
         assert "QAbstractItemView::item:selected" in stylesheet
 
 
+def test_scrollbar_corner_is_transparent(qapp: QApplication) -> None:
+    manager = ThemeManager(qapp)
+    manager.apply("dark")
+
+    stylesheet = qapp.styleSheet()
+    assert "QAbstractScrollArea::corner" in stylesheet
+    assert "background: transparent;" in stylesheet
+
+
 def test_lucide_icon_loader_returns_a_valid_icon(qapp: QApplication) -> None:
     icon = load_icon("monitor.svg", THEMES["dark"].accent, size=24)
 

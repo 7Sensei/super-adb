@@ -90,9 +90,13 @@ class DevicePanel(QFrame):
         self.battery_bar = QProgressBar(content)
         self.battery_bar.setObjectName("batteryBar")
         self.battery_bar.setRange(0, 100)
-        self.battery_bar.setFormat("Baterai %p%")
+        self.battery_bar.setFormat("")
         self.battery_bar.setVisible(False)
         layout.addWidget(self.battery_bar)
+        self.battery_level_label = QLabel("", content)
+        self.battery_level_label.setObjectName("batteryLevel")
+        self.battery_level_label.setVisible(False)
+        layout.addWidget(self.battery_level_label)
         self.battery_status = QLabel("", content)
         self.battery_status.setObjectName("mutedText")
         self.battery_status.setVisible(False)
@@ -178,11 +182,14 @@ class DevicePanel(QFrame):
 
         if info is None or info.battery_level is None:
             self.battery_bar.setVisible(False)
+            self.battery_level_label.setVisible(False)
             self.battery_status.setVisible(False)
             return
         level = max(0, min(100, info.battery_level))
         self.battery_bar.setValue(level)
         self.battery_bar.setVisible(True)
+        self.battery_level_label.setText(f"Baterai {level}%")
+        self.battery_level_label.setVisible(True)
         if info.charging is True:
             status = "Sedang mengisi daya"
         elif info.charging is False:

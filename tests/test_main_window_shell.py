@@ -425,6 +425,7 @@ def test_splitter_defaults_to_55_45(qtbot, qapp: QApplication) -> None:
 
     sizes = window._content_splitter.sizes()
     assert sizes[0] / sum(sizes) == pytest.approx(0.55, abs=0.03)
+    assert window._content_splitter.handleWidth() == 4
 
 
 def test_windows_title_bar_uses_dwm_fallback_attribute(
@@ -537,6 +538,8 @@ def test_device_panel_shows_available_details_and_connection_state(
     assert panel._rows["resolution"].text() == "1080 × 2400"
     assert panel._rows["ram"].text() == "8 GB"
     assert panel.battery_bar.value() == 75
+    assert panel.battery_bar.format() == ""
+    assert panel.battery_level_label.text() == "Baterai 75%"
     assert panel.battery_status.text() == "Sedang mengisi daya"
     assert not panel.mockup.grab().isNull()
 
@@ -545,6 +548,7 @@ def test_device_panel_shows_available_details_and_connection_state(
     assert panel.mockup.device_state == "unauthorized"
     assert panel._rows["brand"].text() == "—"
     assert panel.battery_bar.isHidden()
+    assert panel.battery_level_label.isHidden()
 
     window._viewmodel._update_devices([Device("serial-1", "offline")])
     assert panel.state_badge.text() == "OFFLINE"

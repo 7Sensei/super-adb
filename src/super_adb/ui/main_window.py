@@ -195,6 +195,7 @@ class MainWindow(QMainWindow):
 
         splitter = QSplitter(Qt.Orientation.Vertical, center)
         splitter.setObjectName("contentSplitter")
+        splitter.setHandleWidth(4)
         splitter.setChildrenCollapsible(False)
         self._page_stack = QStackedWidget(splitter)
         self._page_stack.setObjectName("pageStack")

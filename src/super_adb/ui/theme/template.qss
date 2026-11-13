@@ -152,6 +152,11 @@ QPlainTextEdit, QTextEdit, QScrollArea {
     border-radius: 10px;
 }
 
+QAbstractScrollArea::corner {
+    background: transparent;
+    border: 0;
+}
+
 QScrollArea#actionPageScroll {
     background-color: $bg;
     border: 0;
@@ -289,14 +294,17 @@ QProgressBar#batteryBar {
     background-color: $raised;
     border: 1px solid $border;
     border-radius: 6px;
-    color: $text;
-    text-align: center;
     height: 18px;
 }
 
 QProgressBar#batteryBar::chunk {
     background-color: $success;
     border-radius: 5px;
+}
+
+QLabel#batteryLevel {
+    color: $text;
+    font-size: 9pt;
 }
 
 QLabel#busyPill {
@@ -323,7 +331,11 @@ QFrame#railSeparator, QFrame#topBarSeparator, QFrame#statusSeparator {
     color: $border;
 }
 
-QSplitter::handle {
-    background-color: $border;
-    height: 5px;
+QSplitter::handle:horizontal {
+    background-color: transparent;
+    height: 4px;
+}
+
+QSplitter::handle:horizontal:hover {
+    background-color: $muted;
 }
