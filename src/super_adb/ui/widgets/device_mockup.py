@@ -49,8 +49,8 @@ class DeviceMockup(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-        device_height = min(self.height() - 8.0, self.width() * 21 / 9)
-        device_width = device_height * 9 / 19
+        device_height = min(self.height() - 8.0, self.width() * 16 / 9)
+        device_width = device_height * 9 / 16
         body = QRectF(
             (self.width() - device_width) / 2,
             (self.height() - device_height) / 2,
