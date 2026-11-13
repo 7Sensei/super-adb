@@ -97,7 +97,15 @@ QPushButton[variant="primary"] {
 }
 
 QPushButton[variant="danger"] {
-    color: $danger_text;
+    background-color: $surface;
+    color: $danger;
+    border-color: $danger;
+}
+
+QPushButton[variant="danger"]:hover {
+    background-color: $danger;
+    color: $danger_fill_text;
+    border-color: $danger;
 }
 
 QPlainTextEdit, QTextEdit, QScrollArea {

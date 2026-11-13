@@ -19,6 +19,7 @@ class SystemPage(ActionPage):
                 "Perbarui daftar perangkat ADB yang terhubung.",
                 "refresh-cw.svg",
                 viewmodel.check_devices,
+                "default",
             ),
             (
                 "basic-info",
@@ -26,6 +27,7 @@ class SystemPage(ActionPage):
                 "Tampilkan merek, model, dan nama produk.",
                 "smartphone.svg",
                 viewmodel.show_basic_info,
+                "default",
             ),
             (
                 "hardware",
@@ -33,6 +35,7 @@ class SystemPage(ActionPage):
                 "Tampilkan versi Android, prosesor, layar, dan RAM.",
                 "cpu.svg",
                 viewmodel.check_hardware,
+                "primary",
             ),
             (
                 "battery",
@@ -40,6 +43,7 @@ class SystemPage(ActionPage):
                 "Tampilkan informasi baterai perangkat.",
                 "battery-charging.svg",
                 viewmodel.show_battery_status,
+                "default",
             ),
             (
                 "reboot",
@@ -47,6 +51,7 @@ class SystemPage(ActionPage):
                 "Mulai ulang perangkat Android yang dipilih.",
                 "power.svg",
                 viewmodel.reboot_device,
+                "danger",
             ),
         ]
         super().__init__(actions, theme_manager, parent)

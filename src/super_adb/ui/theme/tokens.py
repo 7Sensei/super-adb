@@ -19,6 +19,7 @@ class ThemeTokens:
     warning_text: str
     danger: str
     danger_text: str
+    danger_fill_text: str
 
     def as_qss(self) -> dict[str, str]:
         return asdict(self)
@@ -40,6 +41,7 @@ THEMES: dict[str, ThemeTokens] = {
         warning_text="#F5A524",
         danger="#F2555A",
         danger_text="#F2555A",
+        danger_fill_text="#1A080A",
     ),
     "light": ThemeTokens(
         bg="#F4F4F6",
@@ -56,6 +58,7 @@ THEMES: dict[str, ThemeTokens] = {
         warning_text="#8A5800",
         danger="#F2555A",
         danger_text="#B4232D",
+        danger_fill_text="#1A080A",
     ),
 }
 

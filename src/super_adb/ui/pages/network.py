@@ -20,6 +20,7 @@ class NetworkPage(ActionPage):
                 "Aktifkan koneksi ADB melalui jaringan pada port 5555.",
                 "plug-zap.svg",
                 viewmodel.enable_tcpip,
+                "default",
             ),
             (
                 "connect-wireless",
@@ -27,6 +28,7 @@ class NetworkPage(ActionPage):
                 "Masukkan alamat IP perangkat untuk koneksi wireless.",
                 "wifi.svg",
                 lambda: self._connect_wireless(viewmodel),
+                "primary",
             ),
             (
                 "disconnect-devices",
@@ -34,6 +36,7 @@ class NetworkPage(ActionPage):
                 "Putuskan seluruh koneksi ADB wireless.",
                 "circle-alert.svg",
                 viewmodel.disconnect_devices,
+                "default",
             ),
         ]
         super().__init__(actions, theme_manager, parent)

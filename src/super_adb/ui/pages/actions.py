@@ -4,9 +4,16 @@ from typing import TypeAlias
 from PySide6.QtWidgets import QGridLayout, QScrollArea, QVBoxLayout, QWidget
 
 from super_adb.ui.theme.manager import ThemeManager
-from super_adb.ui.widgets.action_card import ActionCard
+from super_adb.ui.widgets.action_card import ActionCard, ActionVariant
 
-ActionDefinition: TypeAlias = tuple[str, str, str, str, Callable[[], None]]
+ActionDefinition: TypeAlias = tuple[
+    str,
+    str,
+    str,
+    str,
+    Callable[[], None],
+    ActionVariant,
+]
 
 
 class ActionPage(QWidget):
@@ -32,7 +39,7 @@ class ActionPage(QWidget):
         grid.setVerticalSpacing(12)
         grid.setColumnStretch(0, 1)
         grid.setColumnStretch(1, 1)
-        for index, (action_id, title, description, icon, callback) in enumerate(actions):
+        for index, (action_id, title, description, icon, callback, variant) in enumerate(actions):
             card = ActionCard(
                 action_id,
                 title,
@@ -40,6 +47,7 @@ class ActionPage(QWidget):
                 icon,
                 callback,
                 theme_manager,
+                variant,
                 content,
             )
             grid.addWidget(card, index // 2, index % 2)

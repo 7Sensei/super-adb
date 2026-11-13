@@ -20,6 +20,7 @@ class AppsPage(ActionPage):
                 "Pilih file APK dari komputer untuk dipasang.",
                 "download.svg",
                 lambda: self._install_apk(viewmodel),
+                "primary",
             ),
             (
                 "list-apps",
@@ -27,6 +28,7 @@ class AppsPage(ActionPage):
                 "Tampilkan daftar package pada perangkat.",
                 "package.svg",
                 viewmodel.list_apps,
+                "default",
             ),
             (
                 "uninstall-app",
@@ -34,6 +36,7 @@ class AppsPage(ActionPage):
                 "Masukkan nama package aplikasi yang akan dihapus.",
                 "trash-2.svg",
                 lambda: self._uninstall_app(viewmodel),
+                "danger",
             ),
         ]
         super().__init__(actions, theme_manager, parent)

@@ -1,4 +1,5 @@
 from collections.abc import Callable
+from typing import Literal
 
 from PySide6.QtCore import QSize
 from PySide6.QtWidgets import (
@@ -14,6 +15,8 @@ from super_adb.ui.icons import load_icon
 from super_adb.ui.theme.manager import ThemeManager
 from super_adb.ui.theme.tokens import ThemeTokens
 
+ActionVariant = Literal["default", "primary", "danger"]
+
 
 class ActionCard(QFrame):
     def __init__(
@@ -24,6 +27,7 @@ class ActionCard(QFrame):
         icon_name: str,
         on_trigger: Callable[[], None],
         theme_manager: ThemeManager,
+        variant: ActionVariant = "default",
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -31,6 +35,7 @@ class ActionCard(QFrame):
         self.setMinimumHeight(148)
         self._icon_name = icon_name
         self._theme_manager = theme_manager
+        self._variant = variant
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 14, 16, 14)
@@ -56,12 +61,25 @@ class ActionCard(QFrame):
 
         self.button = QPushButton("Jalankan", self)
         self.button.setObjectName(f"action-{action_id}")
+        self.button.setProperty("variant", variant)
+        self.button.style().unpolish(self.button)
+        self.button.style().polish(self.button)
         self.button.clicked.connect(on_trigger)
         layout.addWidget(self.button)
 
         theme_manager.themeChanged.connect(self._set_icon)
         self._set_icon(theme_manager.tokens)
 
+    def set_variant(self, variant: ActionVariant) -> None:
+        if variant == self._variant:
+            return
+        self._variant = variant
+        self.button.setProperty("variant", variant)
+        self.button.style().unpolish(self.button)
+        self.button.style().polish(self.button)
+        self._set_icon(self._theme_manager.tokens)
+
     def _set_icon(self, tokens: ThemeTokens) -> None:
-        icon = load_icon(self._icon_name, tokens.accent, size=22)
+        color = tokens.danger if self._variant == "danger" else tokens.accent
+        icon = load_icon(self._icon_name, color, size=22)
         self._icon.setPixmap(icon.pixmap(QSize(22, 22)))

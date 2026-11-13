@@ -164,6 +164,23 @@ def test_pages_expose_all_existing_actions_and_settings(qtbot, qapp: QApplicatio
     assert window._settings_viewmodel.theme_mode.value == "light"
 
 
+def test_action_buttons_set_primary_and_danger_variants(qtbot, qapp: QApplication) -> None:
+    window = build_window(qapp)
+    qtbot.addWidget(window)
+
+    hardware = window.findChild(QPushButton, "action-hardware")
+    reboot = window.findChild(QPushButton, "action-reboot")
+    install = window.findChild(QPushButton, "action-install-apk")
+    uninstall = window.findChild(QPushButton, "action-uninstall-app")
+    connect = window.findChild(QPushButton, "action-connect-wireless")
+
+    assert hardware is not None and hardware.property("variant") == "primary"
+    assert reboot is not None and reboot.property("variant") == "danger"
+    assert install is not None and install.property("variant") == "primary"
+    assert uninstall is not None and uninstall.property("variant") == "danger"
+    assert connect is not None and connect.property("variant") == "primary"
+
+
 def test_main_window_polls_and_displays_devices(qtbot, qapp: QApplication) -> None:
     window = build_window(qapp)
     qtbot.addWidget(window)
