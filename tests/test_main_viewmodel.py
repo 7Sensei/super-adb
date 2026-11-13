@@ -1,5 +1,6 @@
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
+from unittest.mock import Mock, patch
 
 from super_adb.models.device import Device
 from super_adb.services.errors import AdbNotFoundError
@@ -138,3 +139,13 @@ def test_signal_emits_event_without_state() -> None:
     signal.emit("new log line")
 
     assert observed == ["new log line"]
+
+
+def test_close_shuts_down_owned_executor_without_waiting() -> None:
+    executor = Mock()
+    with patch("super_adb.viewmodels.main_viewmodel.ThreadPoolExecutor", return_value=executor):
+        viewmodel = MainViewModel(FakeAdb(), ImmediateDispatcher())
+
+    viewmodel.close()
+
+    executor.shutdown.assert_called_once_with(wait=False, cancel_futures=True)

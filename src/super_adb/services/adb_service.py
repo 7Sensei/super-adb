@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+import threading
 from collections.abc import Callable
 from typing import Protocol
 
@@ -14,6 +15,11 @@ class AdbService(Protocol):
 
 
 class SubprocessAdbService:
+    def __init__(self) -> None:
+        self._process_lock = threading.Lock()
+        self._active_processes: set[subprocess.Popen[str]] = set()
+        self._closed = False
+
     def execute(self, command: list[str], on_line: Callable[[str], None]) -> str:
         if not isinstance(command, list) or not all(isinstance(part, str) for part in command):
             raise AdbError("Perintah ADB harus berupa list[str].")
@@ -26,16 +32,23 @@ class SubprocessAdbService:
                 "ADB tidak ditemukan. Pasang Android Platform Tools dan tambahkan adb ke PATH."
             )
 
+        process: subprocess.Popen[str] | None = None
         try:
-            with subprocess.Popen(
-                [executable, *command[1:]],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
-            ) as process:
+            with self._process_lock:
+                if self._closed:
+                    raise AdbError("Service ADB sudah ditutup.")
+                process = subprocess.Popen(
+                    [executable, *command[1:]],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+                )
+                self._active_processes.add(process)
+
+            with process:
                 if process.stdout is None:
                     raise AdbError("Output ADB tidak dapat dibaca.")
 
@@ -51,6 +64,10 @@ class SubprocessAdbService:
             ) from error
         except OSError as error:
             raise AdbError(f"Gagal menjalankan ADB: {error}") from error
+        finally:
+            if process is not None:
+                with self._process_lock:
+                    self._active_processes.discard(process)
 
         output = "\n".join(output_lines)
         if returncode != 0:
@@ -74,3 +91,26 @@ class SubprocessAdbService:
         if detail:
             return f"Perintah ADB gagal (kode {returncode}): {detail}"
         return f"Perintah ADB gagal dengan kode {returncode}."
+
+    def close(self) -> None:
+        with self._process_lock:
+            self._closed = True
+            processes = tuple(self._active_processes)
+
+        for process in processes:
+            self._stop_process(process)
+
+    @staticmethod
+    def _stop_process(process: subprocess.Popen[str]) -> None:
+        if process.poll() is not None:
+            return
+        try:
+            process.terminate()
+        except OSError:
+            if process.poll() is None:
+                raise
+        try:
+            process.wait(timeout=1)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()

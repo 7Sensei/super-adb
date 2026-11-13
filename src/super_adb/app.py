@@ -13,14 +13,18 @@ def main() -> None:
     root.geometry("1000x650")
 
     dispatcher = TkDispatcher(root)
-    viewmodel = MainViewModel(SubprocessAdbService(), dispatcher)
+    adb_service = SubprocessAdbService()
+    viewmodel = MainViewModel(adb_service, dispatcher)
     view = MainView(root, viewmodel)
     view.pack(fill="both", expand=True)
 
     def close_application() -> None:
         dispatcher.close()
-        viewmodel.close()
-        root.destroy()
+        try:
+            adb_service.close()
+        finally:
+            viewmodel.close()
+            root.destroy()
 
     root.protocol("WM_DELETE_WINDOW", close_application)
     root.mainloop()

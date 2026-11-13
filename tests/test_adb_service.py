@@ -1,5 +1,7 @@
 import io
 import subprocess
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import patch
 
 import pytest
@@ -21,6 +23,54 @@ class FakeProcess:
 
     def wait(self) -> int:
         return self.returncode
+
+
+class BlockingOutput:
+    def __init__(self, process: "BlockingProcess") -> None:
+        self.process = process
+
+    def __iter__(self) -> "BlockingOutput":
+        return self
+
+    def __next__(self) -> str:
+        self.process.finished.wait(timeout=3)
+        raise StopIteration
+
+
+class BlockingProcess:
+    def __init__(self) -> None:
+        self.finished = threading.Event()
+        self.started = threading.Event()
+        self.returncode: int | None = None
+        self.stdout = BlockingOutput(self)
+        self.calls: list[str] = []
+        self.killed = False
+
+    def __enter__(self) -> "BlockingProcess":
+        self.started.set()
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        pass
+
+    def poll(self) -> int | None:
+        return self.returncode
+
+    def terminate(self) -> None:
+        self.calls.append("terminate")
+
+    def wait(self, timeout: float | None = None) -> int:
+        if timeout is not None and not self.killed:
+            raise subprocess.TimeoutExpired("adb", timeout)
+        if not self.finished.wait(timeout=3):
+            raise subprocess.TimeoutExpired("adb", timeout)
+        return self.returncode or 0
+
+    def kill(self) -> None:
+        self.calls.append("kill")
+        self.killed = True
+        self.returncode = -9
+        self.finished.set()
 
 
 def test_execute_finds_adb_streams_lines_and_returns_output() -> None:
@@ -68,3 +118,22 @@ def test_execute_reports_command_failures(output: str, returncode: int, expected
 def test_execute_rejects_non_list_command() -> None:
     with pytest.raises(AdbError, match="list"):
         SubprocessAdbService().execute("adb devices", lambda line: None)  # type: ignore[arg-type]
+
+
+def test_close_terminates_active_process_and_kills_after_timeout() -> None:
+    process = BlockingProcess()
+    service = SubprocessAdbService()
+    with (
+        patch("super_adb.services.adb_service.shutil.which", return_value="adb"),
+        patch("super_adb.services.adb_service.subprocess.Popen", return_value=process),
+        ThreadPoolExecutor(max_workers=1) as executor,
+    ):
+        command = executor.submit(service.execute, ["adb", "logcat"], lambda line: None)
+        assert process.started.wait(timeout=2)
+
+        service.close()
+
+        with pytest.raises(AdbError, match="kode -9"):
+            command.result(timeout=2)
+
+    assert process.calls == ["terminate", "kill"]
