@@ -1,11 +1,16 @@
+import os
+import sys
 import threading
+from pathlib import Path
 
-from PySide6.QtWidgets import QApplication, QScrollArea, QWidget
+from PySide6.QtGui import QFontDatabase, QFontInfo
+from PySide6.QtWidgets import QApplication, QPlainTextEdit, QScrollArea, QWidget
 
 from super_adb.ui.icons import load_icon
 from super_adb.ui.qt_dispatcher import QtDispatcher
 from super_adb.ui.theme.manager import ThemeManager
 from super_adb.ui.theme.tokens import THEMES
+from super_adb.ui.widgets.log_panel import LogPanel
 
 
 def test_qt_dispatcher_runs_worker_callbacks_on_the_gui_thread(qtbot) -> None:
@@ -79,3 +84,26 @@ def test_scrollbars_are_thin_and_only_visible_when_content_overflows(
     qtbot.wait(20)
     assert not area.verticalScrollBar().isVisible()
     assert not area.horizontalScrollBar().isVisible()
+
+
+def test_log_panel_uses_fixed_pitch_font_and_wrap_toggle(
+    qtbot,
+    qapp: QApplication,
+) -> None:
+    if sys.platform == "win32" and not QFontDatabase.hasFamily("Consolas"):
+        windows_dir = Path(os.environ.get("WINDIR", r"C:\Windows"))
+        QFontDatabase.addApplicationFont(str(windows_dir / "Fonts" / "consola.ttf"))
+    manager = ThemeManager(qapp, "Arial")
+    panel = LogPanel()
+    qtbot.addWidget(panel)
+
+    assert QFontInfo(panel.output.font()).fixedPitch()
+    assert panel.output.lineWrapMode() == QPlainTextEdit.LineWrapMode.WidgetWidth
+    assert panel.wrap_toggle.isChecked()
+
+    manager.set_font_family("Arial")
+    assert QFontInfo(panel.output.font()).fixedPitch()
+    panel.wrap_toggle.setChecked(False)
+    assert panel.output.lineWrapMode() == QPlainTextEdit.LineWrapMode.NoWrap
+    panel.wrap_toggle.setChecked(True)
+    assert panel.output.lineWrapMode() == QPlainTextEdit.LineWrapMode.WidgetWidth
