@@ -1,30 +1,35 @@
-import customtkinter as ctk
+import sys
+
+from PySide6.QtCore import QSettings
+from PySide6.QtWidgets import QApplication
 
 from super_adb.services.adb_service import SubprocessAdbService
+from super_adb.services.settings_store import JsonSettingsStore
+from super_adb.ui.main_window import MainWindow
+from super_adb.ui.qt_dispatcher import QtDispatcher
+from super_adb.ui.theme.manager import ThemeManager
 from super_adb.viewmodels.main_viewmodel import MainViewModel
-from super_adb.views.dispatcher import TkDispatcher
-from super_adb.views.main_view import MainView
+from super_adb.viewmodels.settings_viewmodel import SettingsViewModel
 
 
-def main() -> None:
-    ctk.set_appearance_mode("Light")
-    root = ctk.CTk()
-    root.title("Super-ADB v2.5")
-    root.geometry("1000x650")
+def main() -> int:
+    application = QApplication(sys.argv)
+    application.setOrganizationName("7Sensei")
+    application.setApplicationName("Super-ADB")
+    application.setApplicationVersion("2.5.0")
 
-    dispatcher = TkDispatcher(root)
+    dispatcher = QtDispatcher()
     adb_service = SubprocessAdbService()
     viewmodel = MainViewModel(adb_service, dispatcher)
-    view = MainView(root, viewmodel)
-    view.pack(fill="both", expand=True)
-
-    def close_application() -> None:
-        dispatcher.close()
-        try:
-            adb_service.close()
-        finally:
-            viewmodel.close()
-            root.destroy()
-
-    root.protocol("WM_DELETE_WINDOW", close_application)
-    root.mainloop()
+    settings_viewmodel = SettingsViewModel(JsonSettingsStore())
+    theme_manager = ThemeManager(application, settings_viewmodel.font_family.value)
+    window_settings = QSettings()
+    window = MainWindow(
+        viewmodel,
+        settings_viewmodel,
+        theme_manager,
+        dispatcher,
+        window_settings,
+    )
+    window.show()
+    return application.exec()

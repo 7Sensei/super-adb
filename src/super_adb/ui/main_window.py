@@ -1,5 +1,7 @@
-from PySide6.QtCore import QElapsedTimer, Qt, QTimer
-from PySide6.QtGui import QKeySequence, QShortcut
+from collections.abc import Callable
+
+from PySide6.QtCore import QElapsedTimer, QSettings, Qt, QTimer
+from PySide6.QtGui import QCloseEvent, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -20,6 +22,7 @@ from super_adb.ui.pages.apps import AppsPage
 from super_adb.ui.pages.network import NetworkPage
 from super_adb.ui.pages.settings import SettingsPage
 from super_adb.ui.pages.system import SystemPage
+from super_adb.ui.qt_dispatcher import QtDispatcher
 from super_adb.ui.theme.manager import ThemeManager
 from super_adb.ui.theme.tokens import ThemeTokens, tokens_for
 from super_adb.ui.widgets.device_chips import DeviceChips
@@ -44,15 +47,25 @@ class MainWindow(QMainWindow):
         viewmodel: MainViewModel,
         settings_viewmodel: SettingsViewModel,
         theme_manager: ThemeManager,
+        dispatcher: QtDispatcher,
+        window_settings: QSettings | None = None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
         self.setWindowTitle("Super-ADB")
+        self._window_settings = window_settings
         self.setMinimumSize(1000, 650)
         self.resize(1400, 850)
+        if self._window_settings is not None:
+            geometry = self._window_settings.value("window/geometry")
+            if geometry:
+                self.restoreGeometry(geometry)
         self._viewmodel = viewmodel
         self._settings_viewmodel = settings_viewmodel
         self._theme_manager = theme_manager
+        self._dispatcher = dispatcher
+        self._unsubscribers: list[Callable[[], None]] = []
+        self._is_closing = False
         self._elapsed = QElapsedTimer()
 
         self._build_ui()
@@ -179,9 +192,8 @@ class MainWindow(QMainWindow):
         self._page_stack.addWidget(SystemPage(self._viewmodel, self._theme_manager))
         self._page_stack.addWidget(AppsPage(self._viewmodel, self._theme_manager))
         self._page_stack.addWidget(NetworkPage(self._viewmodel, self._theme_manager))
-        self._page_stack.addWidget(
-            SettingsPage(self._settings_viewmodel, self._theme_manager)
-        )
+        self._settings_page = SettingsPage(self._settings_viewmodel, self._theme_manager)
+        self._page_stack.addWidget(self._settings_page)
         self._log_panel = LogPanel(splitter)
         splitter.addWidget(self._page_stack)
         splitter.addWidget(self._log_panel)
@@ -193,12 +205,16 @@ class MainWindow(QMainWindow):
     def _connect_viewmodels(self) -> None:
         self._icon_rail.pageRequested.connect(self._set_page)
         self._theme_manager.themeChanged.connect(self._refresh_top_bar_icons)
-        self._viewmodel.devices.subscribe(self._update_device_count)
-        self._viewmodel.status.subscribe(self._status_bar.set_status)
-        self._viewmodel.is_busy.subscribe(self._update_busy)
-        self._viewmodel.log_line.connect(self._log_panel.append_entry)
-        self._settings_viewmodel.theme_mode.subscribe(self._apply_theme)
-        self._settings_viewmodel.font_family.subscribe(self._apply_font)
+        self._unsubscribers.extend(
+            [
+                self._viewmodel.devices.subscribe(self._update_device_count),
+                self._viewmodel.status.subscribe(self._status_bar.set_status),
+                self._viewmodel.is_busy.subscribe(self._update_busy),
+                self._viewmodel.log_line.connect(self._log_panel.append_entry),
+                self._settings_viewmodel.theme_mode.subscribe(self._apply_theme),
+                self._settings_viewmodel.font_family.subscribe(self._apply_font),
+            ]
+        )
         self._update_device_count(self._viewmodel.devices.value)
         self._status_bar.set_status(self._viewmodel.status.value)
         self._update_busy(self._viewmodel.is_busy.value)
@@ -208,6 +224,10 @@ class MainWindow(QMainWindow):
         for index, page in enumerate(pages, start=1):
             shortcut = QShortcut(QKeySequence(f"Ctrl+{index}"), self)
             shortcut.activated.connect(lambda page=page: self._set_page(page))
+        refresh = QShortcut(QKeySequence("F5"), self)
+        refresh.activated.connect(self._viewmodel.check_devices)
+        clear_log = QShortcut(QKeySequence("Ctrl+L"), self)
+        clear_log.activated.connect(self._log_panel.clear)
 
     def _set_page(self, page: str) -> None:
         pages = ("system", "apps", "network", "settings")
@@ -251,3 +271,26 @@ class MainWindow(QMainWindow):
         if self._viewmodel.is_busy.value and self._elapsed.isValid():
             seconds = self._elapsed.elapsed() // 1000
             self._status_bar.set_busy(True, f"{seconds // 60:02}:{seconds % 60:02}")
+
+    def closeEvent(self, event: QCloseEvent) -> None:
+        if self._is_closing:
+            event.accept()
+            return
+        self._is_closing = True
+        if self._window_settings is not None:
+            self._window_settings.setValue("window/geometry", self.saveGeometry())
+            self._window_settings.sync()
+        self._poll_timer.stop()
+        self._device_info_timer.stop()
+        self._elapsed_timer.stop()
+        self._device_chips.dispose()
+        self._device_panel.dispose()
+        self._settings_page.dispose()
+        for unsubscribe in self._unsubscribers:
+            unsubscribe()
+        self._unsubscribers.clear()
+        try:
+            self._viewmodel.close()
+        finally:
+            self._dispatcher.close()
+            event.accept()

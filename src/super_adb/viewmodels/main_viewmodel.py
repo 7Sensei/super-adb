@@ -26,8 +26,6 @@ class MainViewModel:
             if executor is not None
             else ThreadPoolExecutor(max_workers=1, thread_name_prefix="super-adb")
         )
-        self._owns_executor = executor is None
-
         self.devices: Observable[list[Device]] = Observable([])
         self.selected_serial: Observable[str | None] = Observable(None)
         self.device_info: Observable[DeviceInfo | None] = Observable(None)
@@ -139,7 +137,9 @@ class MainViewModel:
         self._run_command(["adb", "disconnect"])
 
     def close(self) -> None:
-        if self._owns_executor:
+        try:
+            self._adb_service.close()
+        finally:
             self._executor.shutdown(wait=False, cancel_futures=True)
 
     def _run_command(self, command: list[str], update_devices: bool = False) -> None:

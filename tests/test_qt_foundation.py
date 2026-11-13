@@ -24,6 +24,17 @@ def test_qt_dispatcher_runs_worker_callbacks_on_the_gui_thread(qtbot) -> None:
     dispatcher.close()
 
 
+def test_qt_dispatcher_drops_queued_callbacks_after_close(qtbot) -> None:
+    dispatcher = QtDispatcher()
+    observed: list[str] = []
+
+    dispatcher.post(lambda: observed.append("late"))
+    dispatcher.close()
+    qtbot.wait(20)
+
+    assert observed == []
+
+
 def test_theme_manager_applies_tokens_and_emits_theme_changed(qapp: QApplication) -> None:
     manager = ThemeManager(qapp)
     observed = []

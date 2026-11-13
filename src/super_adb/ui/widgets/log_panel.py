@@ -29,3 +29,6 @@ class LogPanel(QFrame):
 
     def append_text(self, text: str) -> None:
         self.output.appendPlainText(text)
+
+    def clear(self) -> None:
+        self.output.clear()

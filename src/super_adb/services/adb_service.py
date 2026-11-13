@@ -25,6 +25,9 @@ class AdbService(Protocol):
     def get_device_info(self, serial: str) -> DeviceInfo:
         """Return available device properties; unavailable fields remain unset."""
 
+    def close(self) -> None:
+        """Stop active ADB processes and release service resources."""
+
 
 class SubprocessAdbService:
     def __init__(self, command_timeout: float = 15.0) -> None:

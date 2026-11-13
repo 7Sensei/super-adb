@@ -29,8 +29,12 @@ QFrame#actionCard, QFrame#settingsCard, QFrame#logPanel {
 }
 
 QScrollArea#devicePanelScroll {
-    background-color: transparent;
+    background-color: $surface;
     border: 0;
+}
+
+QWidget#devicePanelViewport, QWidget#devicePanelContent {
+    background-color: $surface;
 }
 
 QFrame[panel="true"] {
@@ -97,8 +101,12 @@ QPlainTextEdit, QTextEdit, QScrollArea {
 }
 
 QScrollArea#actionPageScroll {
-    background-color: transparent;
+    background-color: $bg;
     border: 0;
+}
+
+QWidget#actionPageViewport, QWidget#actionPageContent {
+    background-color: $bg;
 }
 
 QPlainTextEdit#logOutput {

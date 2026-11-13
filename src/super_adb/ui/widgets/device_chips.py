@@ -34,10 +34,17 @@ class DeviceChips(QWidget):
         self.selector.activated.connect(self._selection_changed)
         layout.addWidget(self.selector)
 
-        self._devices.subscribe(self.refresh_devices)
-        self._selected_serial.subscribe(self.select_serial)
+        self._unsubscribers = [
+            self._devices.subscribe(self.refresh_devices),
+            self._selected_serial.subscribe(self.select_serial),
+        ]
         self.refresh_devices(self._devices.value)
         self.select_serial(self._selected_serial.value)
+
+    def dispose(self) -> None:
+        for unsubscribe in self._unsubscribers:
+            unsubscribe()
+        self._unsubscribers.clear()
 
     def refresh_devices(self, devices: list[Device]) -> None:
         blocker = QSignalBlocker(self.selector)

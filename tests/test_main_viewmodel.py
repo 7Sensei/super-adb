@@ -21,8 +21,12 @@ class FakeAdb:
         self.output = output
         self.error = error
         self.commands: list[list[str]] = []
+        self.closed = False
 
         self.info = device_info or DeviceInfo(serial="serial-1", state="device")
+
+    def close(self) -> None:
+        self.closed = True
 
     def execute(
         self,
@@ -221,12 +225,14 @@ def test_signal_emits_event_without_state() -> None:
 
 def test_close_shuts_down_owned_executor_without_waiting() -> None:
     executor = Mock()
+    service = FakeAdb()
     with patch("super_adb.viewmodels.main_viewmodel.ThreadPoolExecutor", return_value=executor):
-        viewmodel = MainViewModel(FakeAdb(), ImmediateDispatcher())
+        viewmodel = MainViewModel(service, ImmediateDispatcher())
 
     viewmodel.close()
 
     executor.shutdown.assert_called_once_with(wait=False, cancel_futures=True)
+    assert service.closed
 
 
 @pytest.mark.parametrize(

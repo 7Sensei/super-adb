@@ -81,7 +81,10 @@ class SettingsPage(QWidget):
         layout.addWidget(font_card)
         layout.addStretch(1)
         self._filter_fonts("")
-        viewmodel.font_family.subscribe(self._font_changed)
+        self._unsubscribe_font = viewmodel.font_family.subscribe(self._font_changed)
+
+    def dispose(self) -> None:
+        self._unsubscribe_font()
 
     def _theme_changed(self, index: int) -> None:
         mode = self.theme_selector.itemData(index)
