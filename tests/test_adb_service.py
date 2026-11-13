@@ -73,6 +73,17 @@ class BlockingProcess:
         self.finished.set()
 
 
+def execute_with_process_output(output: str, returncode: int) -> str:
+    with (
+        patch("super_adb.services.adb_service.shutil.which", return_value="adb"),
+        patch(
+            "super_adb.services.adb_service.subprocess.Popen",
+            return_value=FakeProcess(output, returncode),
+        ),
+    ):
+        return SubprocessAdbService().execute(["adb", "shell", "getprop"], lambda line: None)
+
+
 def test_execute_finds_adb_streams_lines_and_returns_output() -> None:
     process = FakeProcess("List of devices attached\nserial-1\tdevice\n")
     lines: list[str] = []
@@ -95,24 +106,19 @@ def test_execute_reports_adb_not_found() -> None:
             SubprocessAdbService().execute(["adb", "devices"], lambda line: None)
 
 
-@pytest.mark.parametrize(
-    ("output", "returncode", "expected"),
-    [
-        ("error: device offline", 1, "offline"),
-        ("error: device unauthorized", 1, "diotorisasi"),
-        ("unknown command", 2, "kode 2"),
-    ],
-)
-def test_execute_reports_command_failures(output: str, returncode: int, expected: str) -> None:
-    with (
-        patch("super_adb.services.adb_service.shutil.which", return_value="adb"),
-        patch(
-            "super_adb.services.adb_service.subprocess.Popen",
-            return_value=FakeProcess(output, returncode),
-        ),
-    ):
-        with pytest.raises(AdbError, match=expected):
-            SubprocessAdbService().execute(["adb", "shell", "getprop"], lambda line: None)
+def test_execute_reports_device_offline() -> None:
+    with pytest.raises(AdbError, match="offline"):
+        execute_with_process_output("error: device offline", returncode=1)
+
+
+def test_execute_reports_device_unauthorized() -> None:
+    with pytest.raises(AdbError, match="diotorisasi"):
+        execute_with_process_output("error: device unauthorized", returncode=1)
+
+
+def test_execute_reports_nonzero_returncode() -> None:
+    with pytest.raises(AdbError, match="kode 2"):
+        execute_with_process_output("unknown command", returncode=2)
 
 
 def test_execute_rejects_non_list_command() -> None:
