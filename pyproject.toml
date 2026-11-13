@@ -8,10 +8,10 @@ version = "2.5.0"
 description = "Desktop ADB utility built with CustomTkinter"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = ["customtkinter>=5.2,<7"]
+dependencies = ["customtkinter>=5.2,<7", "PySide6-Essentials>=6.12,<7"]
 
 [project.optional-dependencies]
-dev = ["pytest", "ruff", "mypy"]
+dev = ["pytest", "ruff", "mypy", "pytest-qt"]
 
 [project.gui-scripts]
 super-adb = "super_adb.app:main"
