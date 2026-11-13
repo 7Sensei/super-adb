@@ -26,7 +26,23 @@ class FakeAdb:
         return ""
 
     def get_device_info(self, serial: str) -> DeviceInfo:
-        return DeviceInfo(serial=serial, state="device")
+        return DeviceInfo(
+            serial=serial,
+            state="device",
+            brand="Google",
+            model="Pixel 8",
+            product_name="shiba",
+            android_version="14",
+            api_level=34,
+            chipset="Tensor",
+            cpu_abi="arm64-v8a",
+            screen_w=1080,
+            screen_h=2400,
+            density=420,
+            ram_gb=8.0,
+            battery_level=75,
+            charging=True,
+        )
 
 
 class ImmediateDispatcher:
@@ -163,3 +179,30 @@ def test_page_actions_preserve_install_uninstall_and_wireless_flows(
     assert "Menjalankan: adb -s serial-1 install C:\\temp\\sample.apk" in (
         window._log_panel.output.toPlainText()
     )
+
+
+def test_device_panel_shows_available_details_and_connection_state(
+    qtbot,
+    qapp: QApplication,
+) -> None:
+    window = build_window(qapp)
+    qtbot.addWidget(window)
+    qtbot.waitUntil(lambda: window._viewmodel.device_info.value is not None)
+    panel = window._device_panel
+
+    assert panel.state_badge.text() == "ONLINE"
+    assert panel.device_name.text() == "Pixel 8"
+    assert panel._rows["android"].text() == "14"
+    assert panel._rows["resolution"].text() == "1080 × 2400"
+    assert panel._rows["ram"].text() == "8 GB"
+    assert panel.battery_bar.value() == 75
+    assert panel.battery_status.text() == "Sedang mengisi daya"
+    assert not panel.mockup.grab().isNull()
+
+    window._viewmodel._update_devices([Device("serial-1", "unauthorized")])
+    assert panel.state_badge.text() == "UNAUTHORIZED"
+    assert panel._rows["brand"].text() == "—"
+    assert panel.battery_bar.isHidden()
+
+    window._viewmodel.select_device(None)
+    assert panel.state_badge.text() == "TIDAK ADA DEVICE"

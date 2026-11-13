@@ -23,6 +23,7 @@ from super_adb.ui.pages.system import SystemPage
 from super_adb.ui.theme.manager import ThemeManager
 from super_adb.ui.theme.tokens import ThemeTokens, tokens_for
 from super_adb.ui.widgets.device_chips import DeviceChips
+from super_adb.ui.widgets.device_panel import DevicePanel
 from super_adb.ui.widgets.icon_rail import IconRail
 from super_adb.ui.widgets.log_panel import LogPanel
 from super_adb.ui.widgets.status_bar import StatusBar
@@ -105,7 +106,8 @@ class MainWindow(QMainWindow):
 
         center = self._build_center_content(central)
         body.addWidget(center, 1)
-        body.addWidget(self._build_device_placeholder(central))
+        self._device_panel = DevicePanel(self._viewmodel, self._theme_manager, central)
+        body.addWidget(self._device_panel)
         root_layout.addLayout(body, 1)
 
         self._status_bar = StatusBar(central)
@@ -187,23 +189,6 @@ class MainWindow(QMainWindow):
         splitter.setStretchFactor(1, 1)
         layout.addWidget(splitter, 1)
         return center
-
-    def _build_device_placeholder(self, parent: QWidget) -> QFrame:
-        panel = QFrame(parent)
-        panel.setObjectName("devicePlaceholder")
-        panel.setFixedWidth(290)
-        layout = QVBoxLayout(panel)
-        layout.setContentsMargins(18, 18, 18, 18)
-        layout.setSpacing(10)
-        title = QLabel("Perangkat", panel)
-        title.setObjectName("panelTitle")
-        layout.addWidget(title)
-        message = QLabel("Pilih perangkat untuk melihat detailnya.", panel)
-        message.setObjectName("mutedText")
-        message.setWordWrap(True)
-        layout.addWidget(message)
-        layout.addStretch(1)
-        return panel
 
     def _connect_viewmodels(self) -> None:
         self._icon_rail.pageRequested.connect(self._set_page)

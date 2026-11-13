@@ -1,5 +1,4 @@
 QWidget {
-    background-color: $bg;
     color: $text;
     selection-background-color: $accent;
     selection-color: $accent_text;
@@ -7,12 +6,11 @@ QWidget {
     font-size: 10pt;
 }
 
-QMainWindow, QDialog {
+QMainWindow, QDialog, QWidget#mainSurface {
     background-color: $bg;
 }
 
-QFrame#topBar, QWidget#statusStrip, QFrame#devicePlaceholder,
-QWidget#iconRail {
+QFrame#topBar, QWidget#statusStrip, QFrame#devicePanel, QWidget#iconRail {
     background-color: $surface;
     border: 1px solid $border;
     border-radius: 14px;
@@ -28,6 +26,11 @@ QFrame#actionCard, QFrame#settingsCard, QFrame#logPanel {
     background-color: $surface;
     border: 1px solid $border;
     border-radius: 14px;
+}
+
+QScrollArea#devicePanelScroll {
+    background-color: transparent;
+    border: 0;
 }
 
 QFrame[panel="true"] {
@@ -156,6 +159,60 @@ QLabel#actionIcon {
     border: 1px solid $border;
     border-radius: 10px;
     padding: 6px;
+}
+
+QLabel#deviceState {
+    background-color: $raised;
+    border: 1px solid $border;
+    border-radius: 8px;
+    color: $muted;
+    padding: 5px 8px;
+    font-size: 8pt;
+    font-weight: bold;
+}
+
+QLabel#deviceState[status="device"] {
+    color: $success_text;
+}
+
+QLabel#deviceState[status="offline"] {
+    color: $warning_text;
+}
+
+QLabel#deviceState[status="unauthorized"] {
+    color: $danger_text;
+}
+
+QLabel#deviceName {
+    font-size: 12pt;
+    font-weight: bold;
+}
+
+QLabel#deviceSerial, QLabel#detailLabel {
+    color: $muted;
+    font-size: 9pt;
+}
+
+QLabel#detailValue {
+    font-size: 9pt;
+}
+
+QFrame#devicePanelSeparator {
+    color: $border;
+}
+
+QProgressBar#batteryBar {
+    background-color: $raised;
+    border: 1px solid $border;
+    border-radius: 6px;
+    color: $text;
+    text-align: center;
+    height: 18px;
+}
+
+QProgressBar#batteryBar::chunk {
+    background-color: $success;
+    border-radius: 5px;
 }
 
 QLabel#busyPill {
