@@ -1,0 +1,347 @@
+QWidget {
+    color: $text;
+    selection-background-color: $accent;
+    selection-color: $accent_text;
+    font-size: 10pt;
+}
+
+QMainWindow, QDialog, QWidget#mainSurface {
+    background-color: $bg;
+}
+
+QFrame#topBar, QWidget#statusStrip, QFrame#devicePanel, QWidget#iconRail {
+    background-color: $surface;
+    border: 1px solid $border;
+    border-radius: 14px;
+}
+
+QFrame#surface, QFrame#panel, QFrame#card {
+    background-color: $surface;
+    border: 1px solid $border;
+    border-radius: 14px;
+}
+
+QFrame#actionCard, QFrame#settingsCard, QFrame#logPanel {
+    background-color: $surface;
+    border: 1px solid $border;
+    border-radius: 14px;
+}
+
+QScrollArea#devicePanelScroll {
+    background-color: $surface;
+    border: 0;
+}
+
+QWidget#devicePanelViewport, QWidget#devicePanelContent {
+    background-color: $surface;
+}
+
+QFrame[panel="true"] {
+    background-color: $surface;
+    border: 1px solid $border;
+    border-radius: 14px;
+}
+
+QFrame#raised {
+    background-color: $raised;
+    border: 1px solid $border;
+    border-radius: 12px;
+}
+
+QPushButton, QToolButton, QComboBox, QLineEdit {
+    background-color: $raised;
+    border: 1px solid $border;
+    border-radius: 10px;
+    padding: 8px 12px;
+}
+
+QPushButton:hover, QToolButton:hover, QComboBox:hover {
+    border-color: $accent;
+}
+
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 24px;
+    border: 0;
+    background: transparent;
+}
+
+QAbstractItemView, QListView, QListWidget {
+    background-color: $surface;
+    border: 1px solid $border;
+    color: $text;
+    outline: 0;
+}
+
+QAbstractItemView {
+    selection-background-color: $accent;
+    selection-color: $accent_text;
+}
+
+QAbstractItemView::item {
+    padding: 6px 8px;
+    border-radius: 4px;
+}
+
+QAbstractItemView::item:hover {
+    background-color: $raised;
+    color: $text;
+}
+
+QAbstractItemView::item:selected {
+    background-color: $accent;
+    color: $accent_text;
+}
+
+QListWidget {
+    padding: 4px;
+}
+
+QToolButton#brandMark {
+    background-color: $accent;
+    color: $accent_text;
+    border: 0;
+    border-radius: 10px;
+    font-weight: bold;
+    padding: 0;
+}
+
+QToolButton[active="true"] {
+    background-color: $accent;
+    border-color: $accent;
+}
+
+QToolButton#rail-system, QToolButton#rail-apps, QToolButton#rail-network,
+QToolButton#rail-settings, QToolButton#refreshDevices {
+    padding: 0;
+}
+
+QToolButton#logWrapToggle:checked {
+    background-color: $accent;
+    color: $accent_text;
+    border-color: $accent;
+}
+
+QPushButton:disabled, QToolButton:disabled {
+    color: $muted;
+    background-color: $surface;
+}
+
+QPushButton[variant="primary"] {
+    background-color: $accent;
+    color: $accent_text;
+    border-color: $accent;
+}
+
+QPushButton[variant="primary"]:disabled {
+    background-color: $surface;
+    color: $muted;
+    border-color: $accent;
+}
+
+QPushButton[variant="danger"] {
+    background-color: $surface;
+    color: $danger;
+    border-color: $danger;
+}
+
+QPushButton[variant="danger"]:hover {
+    background-color: $danger;
+    color: $danger_fill_text;
+    border-color: $danger;
+}
+
+QPlainTextEdit, QTextEdit, QScrollArea {
+    background-color: $surface;
+    border: 1px solid $border;
+    border-radius: 10px;
+}
+
+QAbstractScrollArea::corner {
+    background: transparent;
+    border: 0;
+}
+
+QScrollArea#actionPageScroll {
+    background-color: $bg;
+    border: 0;
+}
+
+QWidget#actionPageViewport, QWidget#actionPageContent {
+    background-color: $bg;
+}
+
+QPlainTextEdit#logOutput {
+    background-color: $raised;
+    border: 1px solid $border;
+    border-radius: 10px;
+    padding: 8px;
+}
+
+QScrollBar:vertical {
+    background: transparent;
+    width: 8px;
+    margin: 0;
+}
+
+QScrollBar:horizontal {
+    background: transparent;
+    height: 8px;
+    margin: 0;
+}
+
+QScrollBar::handle:vertical, QScrollBar::handle:horizontal {
+    background: $border;
+    border-radius: 4px;
+    min-height: 24px;
+    min-width: 24px;
+}
+
+QScrollBar::handle:vertical:hover, QScrollBar::handle:horizontal:hover {
+    background: $muted;
+}
+
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+    width: 0;
+    height: 0;
+    border: 0;
+    background: transparent;
+}
+
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical,
+QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
+    background: transparent;
+}
+
+QToolTip {
+    background-color: $raised;
+    color: $text;
+    border: 1px solid $border;
+    padding: 5px;
+}
+
+QLabel#appTitle {
+    font-size: 13pt;
+    font-weight: bold;
+}
+
+QLabel#pageTitle {
+    font-size: 18pt;
+    font-weight: bold;
+}
+
+QLabel#pageDescription, QLabel#mutedText, QLabel#deviceChipLabel {
+    color: $muted;
+}
+
+QLabel#panelTitle {
+    font-size: 12pt;
+    font-weight: bold;
+}
+
+QLabel#actionTitle {
+    font-weight: bold;
+}
+
+QLabel#actionDescription {
+    color: $muted;
+}
+
+QLabel#actionIcon {
+    background-color: $raised;
+    border: 1px solid $border;
+    border-radius: 10px;
+    padding: 6px;
+}
+
+QLabel#deviceState {
+    background-color: $raised;
+    border: 1px solid $border;
+    border-radius: 8px;
+    color: $muted;
+    padding: 5px 8px;
+    font-size: 8pt;
+    font-weight: bold;
+}
+
+QLabel#deviceState[status="device"] {
+    color: $success_text;
+}
+
+QLabel#deviceState[status="offline"] {
+    color: $warning_text;
+}
+
+QLabel#deviceState[status="unauthorized"] {
+    color: $danger_text;
+}
+
+QLabel#deviceName {
+    font-size: 12pt;
+    font-weight: bold;
+}
+
+QLabel#deviceSerial, QLabel#detailLabel {
+    color: $muted;
+    font-size: 9pt;
+}
+
+QLabel#detailValue {
+    font-size: 9pt;
+}
+
+QFrame#devicePanelSeparator {
+    color: $border;
+}
+
+QProgressBar#batteryBar {
+    background-color: $raised;
+    border: 1px solid $border;
+    border-radius: 6px;
+    height: 18px;
+}
+
+QProgressBar#batteryBar::chunk {
+    background-color: $success;
+    border-radius: 5px;
+}
+
+QLabel#batteryLevel {
+    color: $text;
+    font-size: 9pt;
+}
+
+QLabel#busyPill {
+    background-color: $surface;
+    border: 1px solid $border;
+    border-radius: 8px;
+    color: $muted;
+    padding: 4px 8px;
+    font-size: 8pt;
+    font-weight: bold;
+}
+
+QLabel#busyPill[active="true"] {
+    background-color: $accent;
+    border-color: $accent;
+    color: $accent_text;
+}
+
+QLabel#elapsedTime, QLabel#deviceCount, QLabel#statusMessage {
+    color: $muted;
+}
+
+QFrame#railSeparator, QFrame#topBarSeparator, QFrame#statusSeparator {
+    color: $border;
+}
+
+QSplitter::handle:horizontal {
+    background-color: transparent;
+    height: 4px;
+}
+
+QSplitter::handle:horizontal:hover {
+    background-color: $muted;
+}
