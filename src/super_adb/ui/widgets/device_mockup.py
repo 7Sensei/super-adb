@@ -1,6 +1,6 @@
 from PySide6.QtCore import QRectF, QSize, Qt
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPainterPath, QPen
-from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QSizePolicy, QWidget
 
 from super_adb.models.device_info import DeviceInfo
 from super_adb.ui.theme.manager import ThemeManager
@@ -15,14 +15,15 @@ class DeviceMockup(QWidget):
     ) -> None:
         super().__init__(parent)
         self.setObjectName("deviceMockup")
-        self.setMinimumHeight(190)
-        self.setMaximumHeight(220)
+        self.setMinimumHeight(180)
+        self.setMaximumHeight(340)
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
         self._theme_manager = theme_manager
         self._device_info: DeviceInfo | None = None
         theme_manager.themeChanged.connect(self._theme_changed)
 
     def sizeHint(self) -> QSize:
-        return QSize(240, 205)
+        return QSize(260, 240)
 
     def set_device_info(self, info: DeviceInfo | None) -> None:
         self._device_info = info

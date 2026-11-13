@@ -2,7 +2,7 @@ from concurrent.futures import Executor, Future
 
 import pytest
 from PySide6.QtCore import QSettings, Qt
-from PySide6.QtWidgets import QApplication, QComboBox, QFrame, QPushButton, QScrollArea
+from PySide6.QtWidgets import QApplication, QComboBox, QFrame, QPushButton, QScrollArea, QWidget
 
 from super_adb.models.app_settings import AppSettings
 from super_adb.models.device import Device
@@ -313,6 +313,22 @@ def test_device_panel_shows_available_details_and_connection_state(
 
     window._viewmodel.select_device(None)
     assert panel.state_badge.text() == "TIDAK ADA DEVICE"
+
+
+def test_device_panel_fits_1080p_without_scroll(qtbot, qapp: QApplication) -> None:
+    window = build_window(qapp)
+    qtbot.addWidget(window)
+    window.resize(1920, 1080)
+    window.show()
+    qtbot.wait(50)
+
+    panel = window._device_panel
+    rows = panel.findChildren(QWidget, "deviceDetailRow")
+    assert panel.width() == 320
+    assert 180 <= panel.mockup.height() <= 340
+    assert rows
+    assert panel.battery_bar.width() == rows[0].width()
+    assert panel._scroll_area.verticalScrollBar().maximum() == 0
 
 
 def test_closing_window_stops_timers_dispatcher_service_and_executor(

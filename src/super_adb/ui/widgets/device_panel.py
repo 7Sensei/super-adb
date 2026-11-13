@@ -24,7 +24,7 @@ class DevicePanel(QFrame):
     ) -> None:
         super().__init__(parent)
         self.setObjectName("devicePanel")
-        self.setFixedWidth(290)
+        self.setFixedWidth(320)
         self._viewmodel = viewmodel
         self._unsubscribers = [
             viewmodel.devices.subscribe(self._refresh),
@@ -38,12 +38,13 @@ class DevicePanel(QFrame):
         scroll.setObjectName("devicePanelScroll")
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
+        self._scroll_area = scroll
         scroll.viewport().setObjectName("devicePanelViewport")
         content = QWidget(scroll)
         content.setObjectName("devicePanelContent")
         layout = QVBoxLayout(content)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(10)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(6)
 
         title = QLabel("Perangkat", content)
         title.setObjectName("panelTitle")
@@ -55,7 +56,7 @@ class DevicePanel(QFrame):
         layout.addWidget(self.state_badge)
 
         self.mockup = DeviceMockup(theme_manager, content)
-        layout.addWidget(self.mockup)
+        layout.addWidget(self.mockup, 1)
 
         self.device_name = QLabel("Perangkat", content)
         self.device_name.setObjectName("deviceName")
@@ -96,8 +97,6 @@ class DevicePanel(QFrame):
         self.battery_status.setObjectName("mutedText")
         self.battery_status.setVisible(False)
         layout.addWidget(self.battery_status)
-        layout.addStretch(1)
-
         scroll.setWidget(content)
         outer_layout.addWidget(scroll)
         self._refresh(None)
@@ -109,6 +108,7 @@ class DevicePanel(QFrame):
 
     def _add_detail_row(self, layout: QVBoxLayout, title: str, parent: QWidget) -> QLabel:
         row = QWidget(parent)
+        row.setObjectName("deviceDetailRow")
         row_layout = QHBoxLayout(row)
         row_layout.setContentsMargins(0, 0, 0, 0)
         row_layout.setSpacing(8)
