@@ -374,6 +374,30 @@ def test_failed_font_application_keeps_previous_font_and_setting(
     qapp.setFont(original_font)
 
 
+def test_font_buttons_are_right_aligned_primary_and_width_stable(
+    qapp: QApplication,
+    tmp_path,
+) -> None:
+    store = JsonSettingsStore(tmp_path / "settings.json")
+    store.save(AppSettings(theme_mode="dark", font_family="Arial"))
+    window = build_window(qapp, settings_store=store)
+    page = window.page_stack.widget(3)
+    button_layout = page.apply_font_button.parentWidget().layout()
+    initial_width = page.apply_font_button.width()
+
+    assert page.apply_font_button.property("variant") == "primary"
+    assert page.default_font_button.property("variant") is None
+    assert button_layout.itemAt(button_layout.count() - 1).widget() is page.apply_font_button
+    assert button_layout.itemAt(button_layout.count() - 2).widget() is page.default_font_button
+
+    page.apply_font_button.setText("Menerapkan...")
+    assert page.apply_font_button.width() == initial_width
+    page.apply_font_button.setText("Terapkan")
+    assert page.apply_font_button.width() == initial_width
+
+    window.close()
+
+
 def test_unavailable_saved_font_uses_fallback_without_overwriting_store(
     qtbot,
     qapp: QApplication,

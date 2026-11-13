@@ -134,6 +134,12 @@ QPushButton[variant="primary"] {
     border-color: $accent;
 }
 
+QPushButton[variant="primary"]:disabled {
+    background-color: $surface;
+    color: $muted;
+    border-color: $accent;
+}
+
 QPushButton[variant="danger"] {
     background-color: $surface;
     color: $danger;
