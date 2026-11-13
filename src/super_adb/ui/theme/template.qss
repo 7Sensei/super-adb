@@ -60,6 +60,45 @@ QPushButton:hover, QToolButton:hover, QComboBox:hover {
     border-color: $accent;
 }
 
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 24px;
+    border: 0;
+    background: transparent;
+}
+
+QAbstractItemView, QListView, QListWidget {
+    background-color: $surface;
+    border: 1px solid $border;
+    color: $text;
+    outline: 0;
+}
+
+QAbstractItemView {
+    selection-background-color: $accent;
+    selection-color: $accent_text;
+}
+
+QAbstractItemView::item {
+    padding: 6px 8px;
+    border-radius: 4px;
+}
+
+QAbstractItemView::item:hover {
+    background-color: $raised;
+    color: $text;
+}
+
+QAbstractItemView::item:selected {
+    background-color: $accent;
+    color: $accent_text;
+}
+
+QListWidget {
+    padding: 4px;
+}
+
 QToolButton#brandMark {
     background-color: $accent;
     color: $accent_text;

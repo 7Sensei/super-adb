@@ -3,8 +3,15 @@ import sys
 import threading
 from pathlib import Path
 
-from PySide6.QtGui import QFontDatabase, QFontInfo
-from PySide6.QtWidgets import QApplication, QPlainTextEdit, QScrollArea, QWidget
+from PySide6.QtGui import QFontDatabase, QFontInfo, QPalette
+from PySide6.QtWidgets import (
+    QApplication,
+    QComboBox,
+    QListWidget,
+    QPlainTextEdit,
+    QScrollArea,
+    QWidget,
+)
 
 from super_adb.ui.icons import load_icon
 from super_adb.ui.qt_dispatcher import QtDispatcher
@@ -50,6 +57,27 @@ def test_theme_manager_applies_tokens_and_emits_theme_changed(qapp: QApplication
     assert manager.tokens == THEMES["light"]
     assert manager.tokens.bg in qapp.styleSheet()
     assert observed == [THEMES["light"]]
+
+
+def test_list_and_combo_popup_use_theme_tokens(qapp: QApplication) -> None:
+    manager = ThemeManager(qapp)
+    manager.apply("dark")
+    list_widget = QListWidget()
+    combo = QComboBox()
+    popup = combo.view()
+
+    for mode in ("dark", "light"):
+        manager.apply(mode)
+        tokens = THEMES[mode]
+        for widget in (list_widget, popup):
+            palette = widget.palette()
+            assert palette.color(QPalette.ColorRole.Base).name() == tokens.surface.lower()
+            assert palette.color(QPalette.ColorRole.Text).name() == tokens.text.lower()
+            assert palette.color(QPalette.ColorRole.Highlight).name() == tokens.accent.lower()
+        stylesheet = qapp.styleSheet()
+        assert "$" not in stylesheet
+        assert tokens.surface in stylesheet
+        assert "QAbstractItemView::item:selected" in stylesheet
 
 
 def test_lucide_icon_loader_returns_a_valid_icon(qapp: QApplication) -> None:
