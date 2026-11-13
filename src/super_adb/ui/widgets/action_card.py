@@ -34,7 +34,7 @@ class ActionCard(QFrame):
     ) -> None:
         super().__init__(parent)
         self.setObjectName("actionCard")
-        self.setMinimumHeight(84)
+        self.setMinimumHeight(72)
         self.setMaximumHeight(96)
         self._icon_name = icon_name
         self._theme_manager = theme_manager

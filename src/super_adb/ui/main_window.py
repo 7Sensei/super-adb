@@ -68,6 +68,7 @@ class MainWindow(QMainWindow):
         self._dispatcher = dispatcher
         self._unsubscribers: list[Callable[[], None]] = []
         self._is_closing = False
+        self._restore_splitter_on_show = True
         self._elapsed = QElapsedTimer()
 
         self._build_ui()
@@ -202,14 +203,12 @@ class MainWindow(QMainWindow):
         self._content_splitter = splitter
         splitter.setStretchFactor(0, 55)
         splitter.setStretchFactor(1, 45)
+        self._initial_splitter_sizes: list[int] | None = None
         if self._window_settings is not None:
             sizes = self._window_settings.value("window/content-splitter-sizes")
             if isinstance(sizes, list) and len(sizes) == 2:
-                splitter.setSizes([int(size) for size in sizes])
-            else:
-                splitter.setSizes([55, 45])
-        else:
-            splitter.setSizes([55, 45])
+                self._initial_splitter_sizes = [int(size) for size in sizes]
+        splitter.setSizes(self._initial_splitter_sizes or [55, 45])
         layout.addWidget(splitter, 1)
         return center
 
@@ -264,6 +263,17 @@ class MainWindow(QMainWindow):
     def showEvent(self, event: QShowEvent) -> None:
         super().showEvent(event)
         self._apply_title_bar_theme(self._theme_manager.tokens)
+        if self._restore_splitter_on_show:
+            self._restore_splitter_on_show = False
+            QTimer.singleShot(0, self._restore_initial_splitter_sizes)
+
+    def _restore_initial_splitter_sizes(self) -> None:
+        if self._initial_splitter_sizes is not None:
+            self._content_splitter.setSizes(self._initial_splitter_sizes)
+            return
+        height = self._content_splitter.height()
+        action_height = round(height * 0.55)
+        self._content_splitter.setSizes([action_height, height - action_height])
 
     def _apply_title_bar_theme(self, tokens: ThemeTokens) -> None:
         if sys.platform != "win32":

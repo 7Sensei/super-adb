@@ -222,6 +222,17 @@ def test_splitter_ratio_is_persisted(qtbot, qapp: QApplication, tmp_path) -> Non
     assert sizes[0] / sum(sizes) == pytest.approx(0.55, abs=0.05)
 
 
+def test_splitter_defaults_to_55_45(qtbot, qapp: QApplication) -> None:
+    window = build_window(qapp)
+    qtbot.addWidget(window)
+    window.resize(1920, 1080)
+    window.show()
+    qtbot.wait(50)
+
+    sizes = window._content_splitter.sizes()
+    assert sizes[0] / sum(sizes) == pytest.approx(0.55, abs=0.03)
+
+
 def test_windows_title_bar_uses_dwm_fallback_attribute(
     qtbot,
     qapp: QApplication,
