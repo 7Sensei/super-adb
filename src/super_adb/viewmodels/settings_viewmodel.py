@@ -33,13 +33,21 @@ class SettingsViewModel:
             self._theme_applier(mode)
 
     def set_font_family(self, family: str) -> None:
+        self.save_font_family(family)
+        if self._font_applier is not None:
+            self._font_applier(family)
+
+    def save_font_family(self, family: str) -> None:
         if not family:
             raise ValueError("Nama font tidak boleh kosong.")
         if family != self.font_family.value:
+            self._store.save(
+                AppSettings(
+                    theme_mode=self.theme_mode.value,
+                    font_family=family,
+                )
+            )
             self.font_family.value = family
-            self._save()
-        if self._font_applier is not None:
-            self._font_applier(family)
 
     def _save(self) -> None:
         self._store.save(

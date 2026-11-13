@@ -1,12 +1,14 @@
 import os
 import sys
+import time
 from concurrent.futures import Executor, Future
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 from PySide6.QtCore import QSettings, Qt
-from PySide6.QtGui import QColor, QFont, QFontDatabase, QPalette
+from PySide6.QtGui import QColor, QFont, QFontDatabase, QFontInfo, QPalette
+from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QComboBox, QFrame, QPushButton, QScrollArea, QWidget
 
 from super_adb.models.app_settings import AppSettings
@@ -243,19 +245,40 @@ def test_selecting_font_only_changes_preview_until_applied(
     assert all(
         selected.casefold() in settings_page.font_list.item(index).text().casefold()
         for index in range(settings_page.font_list.count())
+        if not settings_page.font_list.item(index).isHidden()
     )
     settings_page.font_search.clear()
+    initial_count = settings_page.font_list.count()
     item = settings_page.font_list.findItems(selected, Qt.MatchFlag.MatchExactly)[0]
     settings_page.font_list.setCurrentItem(item)
+    settings_page.font_search.setText("__super_adb_no_such_font__")
+    assert settings_page._preview_family == selected
+    assert not any(
+        not settings_page.font_list.item(index).isHidden()
+        for index in range(settings_page.font_list.count())
+    )
+    settings_page.font_search.clear()
+    assert settings_page.font_list.currentItem().text() == selected
+    assert settings_page.font_list.count() == initial_count
 
     assert settings_page.preview.text() == "Pratinjau: The quick brown fox 0123456789"
     assert settings_page.preview.font().family() == selected
     assert qapp.font().family() == "Arial"
     assert store.load().font_family == "Arial"
 
-    settings_page.apply_font_button.click()
+    started = time.perf_counter()
+    QTest.mouseClick(settings_page.apply_font_button, Qt.MouseButton.LeftButton)
+    assert not settings_page.apply_font_button.isEnabled()
+    qtbot.waitUntil(
+        lambda: settings_page.current_font.text() == f"Font aktif: {selected}",
+        timeout=1000,
+    )
+    elapsed = time.perf_counter() - started
     assert qapp.font().family() == selected
+    assert QFontInfo(qapp.font()).family() == selected
     assert store.load().font_family == selected
+    assert elapsed < 1
+    assert settings_page.font_list.count() == initial_count
 
     window.close()
     qapp.setFont(original_font)
@@ -275,10 +298,77 @@ def test_restore_default_font_applies_and_saves_default(
     qapp.setFont(QFont("Arial"))
     settings_page = window.page_stack.widget(3)
 
-    settings_page.default_font_button.click()
+    QTest.mouseClick(settings_page.default_font_button, Qt.MouseButton.LeftButton)
+    qtbot.waitUntil(
+        lambda: settings_page.current_font.text() == f"Font aktif: {default_family}",
+        timeout=1000,
+    )
 
     assert qapp.font().family() == default_family
     assert store.load().font_family == default_family
+
+    window.close()
+    qapp.setFont(original_font)
+
+
+def test_font_application_sequence_is_deterministic(
+    qtbot,
+    qapp: QApplication,
+    tmp_path,
+) -> None:
+    sequence = ["Segoe UI", "Arial", "Segoe UI", "Poppins"]
+    if not all(QFontDatabase.hasFamily(family) for family in sequence):
+        pytest.skip("Diperlukan font Segoe UI, Arial, dan Poppins.")
+    original_font = qapp.font()
+    store = JsonSettingsStore(tmp_path / "settings.json")
+    store.save(AppSettings(theme_mode="dark", font_family="Segoe UI"))
+    window = build_window(qapp, settings_store=store)
+    qtbot.addWidget(window)
+    page = window.page_stack.widget(3)
+
+    for family in sequence:
+        page.font_list.setCurrentItem(page._font_items[family])
+        QTest.mouseClick(page.apply_font_button, Qt.MouseButton.LeftButton)
+        qtbot.waitUntil(
+            lambda family=family: page.current_font.text() == f"Font aktif: {family}",
+            timeout=1000,
+        )
+        assert qapp.font().family() == family
+        assert store.load().font_family == family
+
+    window.close()
+    qapp.setFont(original_font)
+
+
+def test_failed_font_application_keeps_previous_font_and_setting(
+    qtbot,
+    qapp: QApplication,
+    tmp_path,
+    monkeypatch,
+) -> None:
+    if not QFontDatabase.hasFamily("Arial"):
+        pytest.skip("Diperlukan font Arial.")
+    original_font = qapp.font()
+    qapp.setFont(QFont("Arial"))
+    store = JsonSettingsStore(tmp_path / "settings.json")
+    store.save(AppSettings(theme_mode="dark", font_family="Arial"))
+    window = build_window(qapp, settings_store=store)
+    qtbot.addWidget(window)
+    page = window.page_stack.widget(3)
+    requested = next(
+        family for family in page._fonts if family != "Arial"
+    )
+    monkeypatch.setattr(window._theme_manager, "set_font_family", lambda family: None)
+    page.font_list.setCurrentItem(page._font_items[requested])
+
+    QTest.mouseClick(page.apply_font_button, Qt.MouseButton.LeftButton)
+    qtbot.waitUntil(
+        lambda: page.current_font.text() == f"Font {requested} tidak dapat diterapkan",
+        timeout=1000,
+    )
+
+    assert qapp.font().family() == "Arial"
+    assert store.load().font_family == "Arial"
 
     window.close()
     qapp.setFont(original_font)

@@ -1,5 +1,5 @@
-from PySide6.QtCore import QSignalBlocker, Qt
-from PySide6.QtGui import QFont, QFontDatabase
+from PySide6.QtCore import QSignalBlocker, Qt, QTimer
+from PySide6.QtGui import QFont, QFontDatabase, QFontInfo
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -40,6 +40,10 @@ class SettingsPage(QWidget):
             key=str.casefold,
         )
         self._preview_family: str | None = None
+        self._applying_font = False
+        self._pending_font_family: str | None = None
+        self._previous_font: QFont | None = None
+        self._previous_theme_font_family: str | None = None
 
         page_layout = QVBoxLayout(self)
         page_layout.setContentsMargins(0, 0, 0, 0)
@@ -113,6 +117,12 @@ class SettingsPage(QWidget):
         self.font_list.setUniformItemSizes(True)
         self.font_list.currentItemChanged.connect(self._select_font)
         font_layout.addWidget(self.font_list)
+        self._font_items: dict[str, QListWidgetItem] = {}
+        for family in self._fonts:
+            item = QListWidgetItem(family)
+            item.setData(Qt.ItemDataRole.UserRole, family)
+            self.font_list.addItem(item)
+            self._font_items[family] = item
 
         buttons = QWidget(font_card)
         buttons_layout = QHBoxLayout(buttons)
@@ -156,14 +166,17 @@ class SettingsPage(QWidget):
         del blocker
 
     def _filter_fonts(self, query: str) -> None:
-        self.font_list.clear()
         normalized_query = query.casefold()
-        for family in self._fonts:
-            if normalized_query in family.casefold():
-                item = QListWidgetItem(family)
-                item.setData(Qt.ItemDataRole.UserRole, family)
-                self.font_list.addItem(item)
-        self.font_list.setVisible(self.font_list.count() > 0)
+        visible_count = 0
+        for family, item in self._font_items.items():
+            visible = normalized_query in family.casefold()
+            item.setHidden(not visible)
+            visible_count += visible
+        self.font_list.setVisible(visible_count > 0)
+        if self._preview_family is not None:
+            selected_item = self._font_items.get(self._preview_family)
+            if selected_item is not None and not selected_item.isHidden():
+                self.font_list.setCurrentItem(selected_item)
 
     def _select_font(
         self,
@@ -179,15 +192,78 @@ class SettingsPage(QWidget):
         self.preview.setFont(QFont(family, self.preview.font().pointSize()))
 
     def _apply_selected_font(self) -> None:
-        if self._preview_family is not None:
-            self._viewmodel.set_font_family(self._preview_family)
+        self._apply_font_family(self._preview_family)
 
     def _restore_default_font(self) -> None:
         family = "Poppins" if QFontDatabase.hasFamily("Poppins") else "Segoe UI"
-        self._viewmodel.set_font_family(family)
+        self._apply_font_family(family)
+
+    def _apply_font_family(self, family: str | None) -> None:
+        if (
+            family is None
+            or self._applying_font
+            or self._font_application is None
+        ):
+            return
+        self._applying_font = True
+        self._pending_font_family = family
+        self._previous_font = self._font_application.font()
+        self._previous_theme_font_family = self._theme_manager.font_family
+        self.apply_font_button.setEnabled(False)
+        self.default_font_button.setEnabled(False)
+        self.font_search.setEnabled(False)
+        self.font_list.setEnabled(False)
+        self.apply_font_button.setText("Menerapkan...")
+        self.current_font.setText("Menerapkan...")
+        QTimer.singleShot(0, self._finish_font_application)
+
+    def _finish_font_application(self) -> None:
+        family = self._pending_font_family
+        previous_font = self._previous_font
+        previous_theme_family = self._previous_theme_font_family
+        if family is None or previous_font is None or self._font_application is None:
+            self._finish_font_feedback()
+            return
+        try:
+            self._theme_manager.set_font_family(family)
+            effective_family = QFontInfo(self._font_application.font()).family()
+            if effective_family != family:
+                self._restore_previous_font(previous_font, previous_theme_family)
+                self.current_font.setText(f"Font {family} tidak dapat diterapkan")
+                return
+            self._viewmodel.save_font_family(family)
+            self._update_active_font(effective_family)
+        except (OSError, RuntimeError, ValueError) as error:
+            self._restore_previous_font(previous_font, previous_theme_family)
+            self.current_font.setText(f"Gagal menerapkan font {family}: {error}")
+            raise
+        finally:
+            self._finish_font_feedback()
+
+    def _restore_previous_font(
+        self,
+        font: QFont,
+        theme_font_family: str | None,
+    ) -> None:
+        if self._font_application is not None:
+            self._font_application.setFont(font)
+        if theme_font_family is not None:
+            self._theme_manager.font_family = theme_font_family
+
+    def _finish_font_feedback(self) -> None:
+        self._applying_font = False
+        self._pending_font_family = None
+        self._previous_font = None
+        self._previous_theme_font_family = None
+        self.apply_font_button.setText("Terapkan")
+        self.apply_font_button.setEnabled(True)
+        self.default_font_button.setEnabled(True)
+        self.font_search.setEnabled(True)
+        self.font_list.setEnabled(True)
 
     def _application_font_changed(self, font: QFont) -> None:
-        self._update_active_font(font.family())
+        if not self._applying_font:
+            self._update_active_font(font.family())
 
     def _update_active_font(self, active_family: str) -> None:
         saved_family = self._viewmodel.font_family.value
