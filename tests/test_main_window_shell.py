@@ -3,18 +3,20 @@ from types import SimpleNamespace
 
 import pytest
 from PySide6.QtCore import QSettings, Qt
+from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QApplication, QComboBox, QFrame, QPushButton, QScrollArea, QWidget
 
 from super_adb.models.app_settings import AppSettings
 from super_adb.models.device import Device
 from super_adb.models.device_info import DeviceInfo
 from super_adb.services.errors import AdbNotFoundError
-from super_adb.services.settings_store import SettingsStore
+from super_adb.services.settings_store import JsonSettingsStore, SettingsStore
 from super_adb.ui import main_window as main_window_module
 from super_adb.ui.main_window import MainWindow
 from super_adb.ui.pages import apps as apps_page
 from super_adb.ui.pages import network as network_page
 from super_adb.ui.theme.manager import ThemeManager
+from super_adb.ui.theme.tokens import THEMES
 from super_adb.viewmodels.main_viewmodel import MainViewModel
 from super_adb.viewmodels.settings_viewmodel import SettingsViewModel
 
@@ -87,8 +89,8 @@ class SyncExecutor(Executor):
 
 
 class FakeSettingsStore(SettingsStore):
-    def __init__(self) -> None:
-        self.settings = AppSettings()
+    def __init__(self, settings: AppSettings | None = None) -> None:
+        self.settings = settings or AppSettings()
 
     def load(self) -> AppSettings:
         return self.settings
@@ -100,10 +102,11 @@ class FakeSettingsStore(SettingsStore):
 def build_window(
     qapp: QApplication,
     window_settings: QSettings | None = None,
+    settings_store: SettingsStore | None = None,
 ) -> MainWindow:
     dispatcher = ImmediateDispatcher()
     viewmodel = MainViewModel(FakeAdb(), dispatcher, SyncExecutor())
-    settings_viewmodel = SettingsViewModel(FakeSettingsStore())
+    settings_viewmodel = SettingsViewModel(settings_store or FakeSettingsStore())
     theme_manager = ThemeManager(qapp)
     return MainWindow(
         viewmodel,
@@ -112,6 +115,66 @@ def build_window(
         dispatcher,
         window_settings,
     )
+
+
+@pytest.mark.parametrize(
+    ("initial_mode", "selector_mode", "toggle_mode"),
+    (("dark", "light", "dark"), ("light", "dark", "light")),
+)
+def test_theme_changes_stay_synchronized_and_persist(
+    qtbot,
+    qapp: QApplication,
+    tmp_path,
+    initial_mode: str,
+    selector_mode: str,
+    toggle_mode: str,
+) -> None:
+    store = JsonSettingsStore(tmp_path / "settings.json")
+    store.save(AppSettings(theme_mode=initial_mode, font_family="Poppins"))
+    window = build_window(qapp, settings_store=store)
+    qtbot.addWidget(window)
+    settings_page = window.page_stack.widget(3)
+
+    def assert_theme(mode: str) -> None:
+        tokens = window._theme_manager.tokens
+        palette = qapp.palette()
+        assert palette.color(QPalette.ColorRole.Base) == QColor(tokens.surface)
+        assert palette.color(QPalette.ColorRole.Window) == QColor(tokens.bg)
+        assert settings_page.theme_selector.currentData() == mode
+        assert window._settings_viewmodel.theme_mode.value == mode
+        assert store.load().theme_mode == mode
+
+    assert_theme(initial_mode)
+    settings_page.theme_selector.setCurrentIndex(
+        settings_page.theme_selector.findData(selector_mode)
+    )
+    assert_theme(selector_mode)
+
+    qtbot.mouseClick(window._theme_button, Qt.MouseButton.LeftButton)
+    assert_theme(toggle_mode)
+
+
+def test_system_theme_change_keeps_system_mode_selected_and_persisted(
+    qtbot,
+    qapp: QApplication,
+    tmp_path,
+) -> None:
+    store = JsonSettingsStore(tmp_path / "settings.json")
+    store.save(AppSettings(theme_mode="dark", font_family="Poppins"))
+    window = build_window(qapp, settings_store=store)
+    qtbot.addWidget(window)
+    settings_page = window.page_stack.widget(3)
+    settings_page.theme_selector.setCurrentIndex(
+        settings_page.theme_selector.findData("system")
+    )
+
+    window._theme_manager._system_theme_changed(Qt.ColorScheme.Light)
+    assert window._theme_manager.tokens.bg == THEMES["light"].bg
+    assert qapp.palette().color(QPalette.ColorRole.Base) == QColor(THEMES["light"].surface)
+    assert qapp.palette().color(QPalette.ColorRole.Window) == QColor(THEMES["light"].bg)
+    assert settings_page.theme_selector.currentData() == "system"
+    assert window._settings_viewmodel.theme_mode.value == "system"
+    assert store.load().theme_mode == "system"
 
 
 def test_main_window_builds_shell_and_navigation(qtbot, qapp: QApplication) -> None:

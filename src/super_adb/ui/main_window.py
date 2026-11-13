@@ -71,6 +71,7 @@ class MainWindow(QMainWindow):
         self._restore_splitter_on_show = True
         self._elapsed = QElapsedTimer()
 
+        self._settings_viewmodel.bind_theme_applier(self._theme_manager.apply)
         self._build_ui()
         self._connect_viewmodels()
         self._log_panel.append_text("Terminal siap...")
@@ -78,7 +79,6 @@ class MainWindow(QMainWindow):
         self._log_panel.append_text("-" * 30)
         self._install_shortcuts()
         self._set_page("system")
-        self._apply_theme(self._settings_viewmodel.theme_mode.value)
         self._apply_font(self._settings_viewmodel.font_family.value)
 
         self._poll_timer = QTimer(self)
@@ -222,7 +222,6 @@ class MainWindow(QMainWindow):
                 self._viewmodel.status.subscribe(self._status_bar.set_status),
                 self._viewmodel.is_busy.subscribe(self._update_busy),
                 self._viewmodel.log_line.connect(self._log_panel.append_entry),
-                self._settings_viewmodel.theme_mode.subscribe(self._apply_theme),
                 self._settings_viewmodel.font_family.subscribe(self._apply_font),
             ]
         )
@@ -256,9 +255,6 @@ class MainWindow(QMainWindow):
             else "light"
         )
         self._settings_viewmodel.set_theme_mode(mode)
-
-    def _apply_theme(self, mode: ThemeMode) -> None:
-        self._theme_manager.apply(mode)
 
     def showEvent(self, event: QShowEvent) -> None:
         super().showEvent(event)

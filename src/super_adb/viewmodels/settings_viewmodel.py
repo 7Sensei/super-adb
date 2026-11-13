@@ -1,3 +1,5 @@
+from collections.abc import Callable
+
 from super_adb.models.app_settings import AppSettings, ThemeMode
 from super_adb.services.settings_store import SettingsStore
 from super_adb.viewmodels.base import Observable
@@ -9,6 +11,11 @@ class SettingsViewModel:
         settings = store.load()
         self.theme_mode: Observable[ThemeMode] = Observable(settings.theme_mode)
         self.font_family: Observable[str] = Observable(settings.font_family)
+        self._theme_applier: Callable[[ThemeMode], None] | None = None
+
+    def bind_theme_applier(self, apply_theme: Callable[[ThemeMode], None]) -> None:
+        self._theme_applier = apply_theme
+        apply_theme(self.theme_mode.value)
 
     def set_theme_mode(self, mode: ThemeMode) -> None:
         if mode not in {"light", "dark", "system"}:
@@ -17,6 +24,8 @@ class SettingsViewModel:
             return
         self.theme_mode.value = mode
         self._save()
+        if self._theme_applier is not None:
+            self._theme_applier(mode)
 
     def set_font_family(self, family: str) -> None:
         if not family:

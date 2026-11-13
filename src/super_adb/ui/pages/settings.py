@@ -1,4 +1,4 @@
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QSignalBlocker, Qt
 from PySide6.QtGui import QFontDatabase
 from PySide6.QtWidgets import (
     QComboBox,
@@ -82,14 +82,21 @@ class SettingsPage(QWidget):
         layout.addStretch(1)
         self._filter_fonts("")
         self._unsubscribe_font = viewmodel.font_family.subscribe(self._font_changed)
+        self._unsubscribe_theme = viewmodel.theme_mode.subscribe(self._theme_mode_changed)
 
     def dispose(self) -> None:
         self._unsubscribe_font()
+        self._unsubscribe_theme()
 
     def _theme_changed(self, index: int) -> None:
         mode = self.theme_selector.itemData(index)
         if mode in {"light", "dark", "system"}:
             self._viewmodel.set_theme_mode(mode)
+
+    def _theme_mode_changed(self, mode: str) -> None:
+        blocker = QSignalBlocker(self.theme_selector)
+        self.theme_selector.setCurrentIndex(self.theme_selector.findData(mode))
+        del blocker
 
     def _filter_fonts(self, query: str) -> None:
         self.font_list.clear()
