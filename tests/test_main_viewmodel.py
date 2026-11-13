@@ -5,24 +5,56 @@ from unittest.mock import Mock, patch
 import pytest
 
 from super_adb.models.device import Device
+from super_adb.models.device_info import DeviceInfo
 from super_adb.services.errors import AdbNotFoundError
 from super_adb.viewmodels.base import Observable, Signal
 from super_adb.viewmodels.main_viewmodel import MainViewModel
 
 
 class FakeAdb:
-    def __init__(self, output: str = "", error: Exception | None = None) -> None:
+    def __init__(
+        self,
+        output: str = "",
+        error: Exception | None = None,
+        device_info: DeviceInfo | None = None,
+    ) -> None:
         self.output = output
         self.error = error
         self.commands: list[list[str]] = []
 
-    def execute(self, command: list[str], on_line: Callable[[str], None]) -> str:
+        self.info = device_info or DeviceInfo(serial="serial-1", state="device")
+
+    def execute(
+        self,
+        command: list[str],
+        on_line: Callable[[str], None],
+        timeout: float | None = None,
+    ) -> str:
         self.commands.append(command)
         if self.error is not None:
             raise self.error
         for line in self.output.splitlines():
             on_line(line)
         return self.output
+
+    def get_device_info(self, serial: str) -> DeviceInfo:
+        return DeviceInfo(
+            serial=serial,
+            state=self.info.state,
+            brand=self.info.brand,
+            model=self.info.model,
+            product_name=self.info.product_name,
+            android_version=self.info.android_version,
+            api_level=self.info.api_level,
+            chipset=self.info.chipset,
+            cpu_abi=self.info.cpu_abi,
+            screen_w=self.info.screen_w,
+            screen_h=self.info.screen_h,
+            density=self.info.density,
+            ram_gb=self.info.ram_gb,
+            battery_level=self.info.battery_level,
+            charging=self.info.charging,
+        )
 
 
 class ImmediateDispatcher:
@@ -41,6 +73,27 @@ class SyncExecutor(ThreadPoolExecutor):
         except Exception as error:
             future.set_exception(error)
         return future
+
+
+class QueuedExecutor:
+    def __init__(self) -> None:
+        self.tasks: list[tuple[Future, Callable, tuple, dict]] = []
+
+    def submit(self, fn: Callable, /, *args, **kwargs) -> Future:
+        future = Future()
+        self.tasks.append((future, fn, args, kwargs))
+        return future
+
+    def run_next(self) -> None:
+        future, fn, args, kwargs = self.tasks.pop(0)
+        try:
+            future.set_result(fn(*args, **kwargs))
+        except Exception as error:
+            future.set_exception(error)
+
+    def run_all(self) -> None:
+        while self.tasks:
+            self.run_next()
 
 
 def make_viewmodel(service: FakeAdb) -> MainViewModel:
@@ -70,6 +123,8 @@ def test_check_devices_updates_device_state_and_streams_log() -> None:
 
 def test_missing_adb_is_reported_in_state_and_log() -> None:
     viewmodel = make_viewmodel(FakeAdb(error=AdbNotFoundError("ADB tidak ditemukan.")))
+    viewmodel._update_devices([Device("serial-1", "device")])
+    viewmodel.select_device("serial-1")
     lines: list[str] = []
     viewmodel.log.connect(lines.append)
 
@@ -81,8 +136,10 @@ def test_missing_adb_is_reported_in_state_and_log() -> None:
 
 
 def test_existing_actions_dispatch_their_original_adb_commands() -> None:
-    service = FakeAdb()
+    service = FakeAdb(output="serial-1\tdevice")
     viewmodel = make_viewmodel(service)
+    viewmodel.check_devices()
+    service.commands.clear()
     actions = [
         viewmodel.check_devices,
         viewmodel.show_basic_info,
@@ -100,24 +157,43 @@ def test_existing_actions_dispatch_their_original_adb_commands() -> None:
     for action in actions:
         action()
 
+    assert [command[:3] for command in service.commands] == [
+        ["adb", "devices"],
+        ["adb", "-s", "serial-1"],
+        ["adb", "-s", "serial-1"],
+        ["adb", "-s", "serial-1"],
+        ["adb", "-s", "serial-1"],
+        ["adb", "-s", "serial-1"],
+        ["adb", "-s", "serial-1"],
+        ["adb", "-s", "serial-1"],
+        ["adb", "-s", "serial-1"],
+        ["adb", "connect", "192.168.1.2"],
+        ["adb", "disconnect"],
+    ]
     assert [command[:2] for command in service.commands] == [
         ["adb", "devices"],
-        ["adb", "shell"],
-        ["adb", "shell"],
-        ["adb", "shell"],
-        ["adb", "reboot"],
-        ["adb", "shell"],
-        ["adb", "install"],
-        ["adb", "uninstall"],
-        ["adb", "tcpip"],
+        ["adb", "-s"],
+        ["adb", "-s"],
+        ["adb", "-s"],
+        ["adb", "-s"],
+        ["adb", "-s"],
+        ["adb", "-s"],
+        ["adb", "-s"],
+        ["adb", "-s"],
         ["adb", "connect"],
         ["adb", "disconnect"],
     ]
-    assert service.commands[6] == ["adb", "install", "app.apk"]
-    assert service.commands[7] == ["adb", "uninstall", "com.example.app"]
+    assert service.commands[6] == ["adb", "-s", "serial-1", "install", "app.apk"]
+    assert service.commands[7] == [
+        "adb",
+        "-s",
+        "serial-1",
+        "uninstall",
+        "com.example.app",
+    ]
     assert service.commands[9] == ["adb", "connect", "192.168.1.2"]
-    assert service.commands[2][2].startswith("echo '=== PLATFORM & OS ===';")
-    assert "cat /proc/meminfo" in service.commands[2][2]
+    assert service.commands[2][4].startswith("echo '=== PLATFORM & OS ===';")
+    assert "cat /proc/meminfo" in service.commands[2][4]
 
 
 def test_observable_notifies_only_when_value_changes_and_unsubscribes() -> None:
@@ -173,4 +249,55 @@ def test_rejects_dialog_arguments_that_start_with_a_dash(
 
     assert service.commands == []
     assert viewmodel.status.value == f"{label} tidak boleh diawali dengan '-'."
-    assert lines == [f"Error: {label} tidak boleh diawali dengan '-'."]
+    assert lines == [f"{label} tidak boleh diawali dengan '-'."]
+
+
+def test_auto_selects_one_online_device_and_updates_command_availability() -> None:
+    viewmodel = make_viewmodel(FakeAdb())
+
+    viewmodel._update_devices([Device("online-1", "device"), Device("offline-1", "offline")])
+
+    assert viewmodel.selected_serial.value == "online-1"
+    assert viewmodel.can_run_device_commands.value is True
+    viewmodel.select_device("offline-1")
+    assert viewmodel.selected_serial.value == "offline-1"
+    assert viewmodel.can_run_device_commands.value is False
+
+
+def test_poll_devices_is_silent_and_does_not_overlap() -> None:
+    service = FakeAdb(output="serial-1\tdevice")
+    executor = QueuedExecutor()
+    viewmodel = MainViewModel(service, ImmediateDispatcher(), executor)
+    logs: list[object] = []
+    changes: list[list[Device]] = []
+    viewmodel.log_line.connect(logs.append)
+    viewmodel.devices.subscribe(changes.append)
+
+    viewmodel.poll_devices()
+    viewmodel.poll_devices()
+
+    assert len(executor.tasks) == 1
+    assert viewmodel.is_busy.value is False
+    assert viewmodel.status.value == "Siap"
+    assert logs == []
+    executor.run_all()
+    assert len(changes) == 1
+    assert viewmodel.selected_serial.value == "serial-1"
+
+    viewmodel.poll_devices()
+    executor.run_all()
+    assert len(changes) == 1
+    assert logs == []
+
+
+def test_log_line_emits_typed_log_entries() -> None:
+    service = FakeAdb(output="serial-1\tdevice")
+    viewmodel = make_viewmodel(service)
+    entries = []
+    viewmodel.log_line.connect(entries.append)
+
+    viewmodel.check_devices()
+
+    assert any(entry.kind == "command" for entry in entries)
+    assert any(entry.kind == "output" for entry in entries)
+    assert all(entry.kind in {"command", "output", "error", "info"} for entry in entries)

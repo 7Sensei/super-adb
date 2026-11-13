@@ -4,8 +4,6 @@ import queue
 import tkinter as tk
 from collections.abc import Callable
 
-from super_adb.viewmodels.base import UiDispatcher as UiDispatcher
-
 
 class TkDispatcher:
     def __init__(self, root: tk.Misc, interval_ms: int = 50, max_items: int = 200) -> None:

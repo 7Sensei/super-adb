@@ -1,12 +1,7 @@
 from collections.abc import Callable
-from typing import Generic, Protocol, TypeVar
+from typing import Generic, TypeVar
 
 T = TypeVar("T")
-
-
-class UiDispatcher(Protocol):
-    def post(self, callback: Callable[[], None]) -> None:
-        """Schedule a callback on the UI thread."""
 
 
 class Observable(Generic[T]):
