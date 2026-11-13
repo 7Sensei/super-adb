@@ -9,6 +9,9 @@ python -m pip install -e ".[dev]"
 python -m super_adb
 ```
 
+There is no `main.py` launcher: this project uses a `src/` layout, so install
+the package before running it as a module.
+
 ADB (Android Platform Tools) must be installed and available on `PATH` when an
 ADB action is run. The application reports a clear error if it cannot find ADB.
 
