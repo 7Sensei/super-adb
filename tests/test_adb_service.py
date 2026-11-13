@@ -7,7 +7,7 @@ from unittest.mock import patch
 import pytest
 
 from super_adb.services.adb_service import SubprocessAdbService
-from super_adb.services.errors import AdbError, AdbNotFoundError
+from super_adb.services.errors import AdbError, AdbNotFoundError, AdbTimeoutError
 
 
 class FakeProcess:
@@ -21,7 +21,7 @@ class FakeProcess:
     def __exit__(self, *args: object) -> None:
         self.stdout.close()
 
-    def wait(self) -> int:
+    def wait(self, timeout: float | None = None) -> int:
         return self.returncode
 
 
@@ -135,5 +135,23 @@ def test_close_terminates_active_process_and_kills_after_timeout() -> None:
 
         with pytest.raises(AdbError, match="kode -9"):
             command.result(timeout=2)
+
+    assert process.calls == ["terminate", "kill"]
+
+
+@pytest.mark.parametrize(
+    "command",
+    [["adb", "devices"], ["adb", "connect", "192.0.2.1:5555"]],
+    ids=["list-devices", "wireless-connect"],
+)
+def test_hanging_command_timeout_terminates_and_kills_process(command: list[str]) -> None:
+    process = BlockingProcess()
+    service = SubprocessAdbService(command_timeout=0.01)
+    with (
+        patch("super_adb.services.adb_service.shutil.which", return_value="adb"),
+        patch("super_adb.services.adb_service.subprocess.Popen", return_value=process),
+    ):
+        with pytest.raises(AdbTimeoutError, match="melewati batas waktu 0.01 detik"):
+            service.execute(command, lambda line: None)
 
     assert process.calls == ["terminate", "kill"]

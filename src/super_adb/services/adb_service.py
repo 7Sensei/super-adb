@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import queue
 import shutil
 import subprocess
 import threading
-from collections.abc import Callable
+import time
+from collections.abc import Callable, Iterator
 from typing import Protocol
 
-from super_adb.services.errors import AdbError, AdbNotFoundError
+from super_adb.services.errors import AdbError, AdbNotFoundError, AdbTimeoutError
 
 
 class AdbService(Protocol):
@@ -15,7 +17,10 @@ class AdbService(Protocol):
 
 
 class SubprocessAdbService:
-    def __init__(self) -> None:
+    def __init__(self, command_timeout: float = 15.0) -> None:
+        if command_timeout <= 0:
+            raise ValueError("command_timeout harus lebih besar dari nol.")
+        self._command_timeout = command_timeout
         self._process_lock = threading.Lock()
         self._active_processes: set[subprocess.Popen[str]] = set()
         self._closed = False
@@ -53,11 +58,23 @@ class SubprocessAdbService:
                     raise AdbError("Output ADB tidak dapat dibaca.")
 
                 output_lines: list[str] = []
-                for raw_line in process.stdout:
+                timeout = self._timeout_for_command(command)
+                deadline = time.monotonic() + timeout if timeout is not None else None
+                for raw_line in self._read_lines(process, command, deadline):
                     line = raw_line.rstrip("\r\n")
                     output_lines.append(line)
                     on_line(line)
-                returncode = process.wait()
+                if deadline is None:
+                    returncode = process.wait()
+                else:
+                    remaining = deadline - time.monotonic()
+                    try:
+                        returncode = process.wait(timeout=max(remaining, 0))
+                    except subprocess.TimeoutExpired:
+                        self._stop_process(process)
+                        raise AdbTimeoutError(
+                            self._timeout_message(command, self._command_timeout)
+                        ) from None
         except FileNotFoundError as error:
             raise AdbNotFoundError(
                 "ADB tidak ditemukan. Pasang Android Platform Tools dan tambahkan adb ke PATH."
@@ -91,6 +108,58 @@ class SubprocessAdbService:
         if detail:
             return f"Perintah ADB gagal (kode {returncode}): {detail}"
         return f"Perintah ADB gagal dengan kode {returncode}."
+
+    def _timeout_for_command(self, command: list[str]) -> float | None:
+        if command[1:2] in (["devices"], ["connect"]):
+            return self._command_timeout
+        return None
+
+    def _read_lines(
+        self,
+        process: subprocess.Popen[str],
+        command: list[str],
+        deadline: float | None,
+    ) -> Iterator[str]:
+        stdout = process.stdout
+        if stdout is None:
+            raise AdbError("Output ADB tidak dapat dibaca.")
+        if deadline is None:
+            yield from stdout
+            return
+
+        lines: queue.Queue[str | None] = queue.Queue()
+
+        def read_output() -> None:
+            try:
+                for line in stdout:
+                    lines.put(line)
+            finally:
+                lines.put(None)
+
+        reader = threading.Thread(target=read_output, name="adb-output", daemon=True)
+        reader.start()
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                self._stop_process(process)
+                raise AdbTimeoutError(self._timeout_message(command, self._command_timeout))
+            try:
+                line = lines.get(timeout=remaining)
+            except queue.Empty:
+                self._stop_process(process)
+                raise AdbTimeoutError(
+                    self._timeout_message(command, self._command_timeout)
+                ) from None
+            if line is None:
+                return
+            yield line
+
+    @staticmethod
+    def _timeout_message(command: list[str], timeout: float) -> str:
+        return (
+            f"Perintah {' '.join(command)} melewati batas waktu {timeout:g} detik; "
+            "proses dihentikan."
+        )
 
     def close(self) -> None:
         with self._process_lock:
