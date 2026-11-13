@@ -147,7 +147,7 @@ class DevicePanel(QFrame):
         name = self._device_name(info, serial)
         self.device_name.setText(name)
         self.serial_label.setText(serial or "Pilih perangkat untuk melihat detailnya.")
-        self.mockup.set_device_info(info)
+        self.mockup.set_device_info(info, state)
         self._update_details(info)
 
     @staticmethod

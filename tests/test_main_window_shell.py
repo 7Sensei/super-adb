@@ -308,11 +308,17 @@ def test_device_panel_shows_available_details_and_connection_state(
 
     window._viewmodel._update_devices([Device("serial-1", "unauthorized")])
     assert panel.state_badge.text() == "UNAUTHORIZED"
+    assert panel.mockup.device_state == "unauthorized"
     assert panel._rows["brand"].text() == "—"
     assert panel.battery_bar.isHidden()
 
+    window._viewmodel._update_devices([Device("serial-1", "offline")])
+    assert panel.state_badge.text() == "OFFLINE"
+    assert panel.mockup.device_state == "offline"
+
     window._viewmodel.select_device(None)
     assert panel.state_badge.text() == "TIDAK ADA DEVICE"
+    assert panel.mockup.device_state == "none"
 
 
 def test_device_panel_fits_1080p_without_scroll(qtbot, qapp: QApplication) -> None:
