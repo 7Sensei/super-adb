@@ -1,4 +1,5 @@
 from concurrent.futures import Executor, Future
+from types import SimpleNamespace
 
 import pytest
 from PySide6.QtCore import QSettings, Qt
@@ -9,6 +10,7 @@ from super_adb.models.device import Device
 from super_adb.models.device_info import DeviceInfo
 from super_adb.services.errors import AdbNotFoundError
 from super_adb.services.settings_store import SettingsStore
+from super_adb.ui import main_window as main_window_module
 from super_adb.ui.main_window import MainWindow
 from super_adb.ui.pages import apps as apps_page
 from super_adb.ui.pages import network as network_page
@@ -218,6 +220,33 @@ def test_splitter_ratio_is_persisted(qtbot, qapp: QApplication, tmp_path) -> Non
     qtbot.wait(50)
     sizes = restored._content_splitter.sizes()
     assert sizes[0] / sum(sizes) == pytest.approx(0.55, abs=0.05)
+
+
+def test_windows_title_bar_uses_dwm_fallback_attribute(
+    qtbot,
+    qapp: QApplication,
+    monkeypatch,
+) -> None:
+    window = build_window(qapp)
+    qtbot.addWidget(window)
+    attributes: list[int] = []
+
+    def set_window_attribute(hwnd, attribute, value, size) -> int:
+        attributes.append(attribute)
+        return 1 if attribute == 20 else 0
+
+    monkeypatch.setattr(main_window_module.sys, "platform", "win32")
+    monkeypatch.setattr(
+        main_window_module.ctypes,
+        "windll",
+        SimpleNamespace(dwmapi=SimpleNamespace(DwmSetWindowAttribute=set_window_attribute)),
+        raising=False,
+    )
+
+    window._apply_title_bar_theme(window._theme_manager.tokens)
+    window._theme_manager.apply("light")
+
+    assert attributes == [20, 19, 20, 19]
 
 
 def test_main_window_polls_and_displays_devices(qtbot, qapp: QApplication) -> None:

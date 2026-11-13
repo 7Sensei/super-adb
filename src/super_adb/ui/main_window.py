@@ -1,7 +1,9 @@
+import ctypes
+import sys
 from collections.abc import Callable
 
 from PySide6.QtCore import QElapsedTimer, QSettings, Qt, QTimer
-from PySide6.QtGui import QCloseEvent, QKeySequence, QShortcut
+from PySide6.QtGui import QCloseEvent, QKeySequence, QShortcut, QShowEvent
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -214,6 +216,7 @@ class MainWindow(QMainWindow):
     def _connect_viewmodels(self) -> None:
         self._icon_rail.pageRequested.connect(self._set_page)
         self._theme_manager.themeChanged.connect(self._refresh_top_bar_icons)
+        self._theme_manager.themeChanged.connect(self._apply_title_bar_theme)
         self._unsubscribers.extend(
             [
                 self._viewmodel.devices.subscribe(self._update_device_count),
@@ -257,6 +260,27 @@ class MainWindow(QMainWindow):
 
     def _apply_theme(self, mode: ThemeMode) -> None:
         self._theme_manager.apply(mode)
+
+    def showEvent(self, event: QShowEvent) -> None:
+        super().showEvent(event)
+        self._apply_title_bar_theme(self._theme_manager.tokens)
+
+    def _apply_title_bar_theme(self, tokens: ThemeTokens) -> None:
+        if sys.platform != "win32":
+            return
+        dark_mode = ctypes.c_int(tokens == tokens_for("dark"))
+        for attribute in (20, 19):
+            try:
+                result = ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                    ctypes.c_void_p(int(self.winId())),
+                    attribute,
+                    ctypes.byref(dark_mode),
+                    ctypes.sizeof(dark_mode),
+                )
+            except (AttributeError, OSError, ctypes.ArgumentError):
+                continue
+            if result == 0:
+                break
 
     def _apply_font(self, family: str) -> None:
         self._theme_manager.set_font_family(family)
