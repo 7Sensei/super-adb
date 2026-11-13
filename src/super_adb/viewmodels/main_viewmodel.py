@@ -75,18 +75,18 @@ class MainViewModel:
         self._run_command(["adb", "shell", "pm", "list", "packages"])
 
     def install_apk(self, file_path: str) -> None:
-        if file_path:
+        if file_path and self._is_safe_argument(file_path, "Path APK"):
             self._run_command(["adb", "install", file_path])
 
     def uninstall_app(self, package_name: str) -> None:
-        if package_name:
+        if package_name and self._is_safe_argument(package_name, "Package name"):
             self._run_command(["adb", "uninstall", package_name])
 
     def enable_tcpip(self) -> None:
         self._run_command(["adb", "tcpip", "5555"])
 
     def connect_wireless(self, ip_address: str) -> None:
-        if ip_address:
+        if ip_address and self._is_safe_argument(ip_address, "IP"):
             self._run_command(["adb", "connect", ip_address])
 
     def disconnect_devices(self) -> None:
@@ -103,6 +103,14 @@ class MainViewModel:
         self._executor.submit(self._execute, command).add_done_callback(
             lambda future: self._dispatcher.post(lambda: self._finish(future, update_devices))
         )
+
+    def _is_safe_argument(self, value: str, label: str) -> bool:
+        if value.lstrip().startswith("-"):
+            message = f"{label} tidak boleh diawali dengan '-'."
+            self.status.value = message
+            self.log.emit(f"Error: {message}")
+            return False
+        return True
 
     def _execute(self, command: list[str]) -> str:
         return self._adb_service.execute(

@@ -2,6 +2,8 @@ from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
 from unittest.mock import Mock, patch
 
+import pytest
+
 from super_adb.models.device import Device
 from super_adb.services.errors import AdbNotFoundError
 from super_adb.viewmodels.base import Observable, Signal
@@ -149,3 +151,26 @@ def test_close_shuts_down_owned_executor_without_waiting() -> None:
     viewmodel.close()
 
     executor.shutdown.assert_called_once_with(wait=False, cancel_futures=True)
+
+
+@pytest.mark.parametrize(
+    ("method_name", "argument", "label"),
+    [
+        ("install_apk", "-payload.apk", "Path APK"),
+        ("uninstall_app", "-k", "Package name"),
+        ("connect_wireless", "-192.0.2.1", "IP"),
+    ],
+)
+def test_rejects_dialog_arguments_that_start_with_a_dash(
+    method_name: str, argument: str, label: str
+) -> None:
+    service = FakeAdb()
+    viewmodel = make_viewmodel(service)
+    lines: list[str] = []
+    viewmodel.log.connect(lines.append)
+
+    getattr(viewmodel, method_name)(argument)
+
+    assert service.commands == []
+    assert viewmodel.status.value == f"{label} tidak boleh diawali dengan '-'."
+    assert lines == [f"Error: {label} tidak boleh diawali dengan '-'."]
