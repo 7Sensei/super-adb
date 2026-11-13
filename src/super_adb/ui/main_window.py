@@ -197,8 +197,17 @@ class MainWindow(QMainWindow):
         self._log_panel = LogPanel(splitter)
         splitter.addWidget(self._page_stack)
         splitter.addWidget(self._log_panel)
-        splitter.setStretchFactor(0, 3)
-        splitter.setStretchFactor(1, 1)
+        self._content_splitter = splitter
+        splitter.setStretchFactor(0, 55)
+        splitter.setStretchFactor(1, 45)
+        if self._window_settings is not None:
+            sizes = self._window_settings.value("window/content-splitter-sizes")
+            if isinstance(sizes, list) and len(sizes) == 2:
+                splitter.setSizes([int(size) for size in sizes])
+            else:
+                splitter.setSizes([55, 45])
+        else:
+            splitter.setSizes([55, 45])
         layout.addWidget(splitter, 1)
         return center
 
@@ -279,6 +288,10 @@ class MainWindow(QMainWindow):
         self._is_closing = True
         if self._window_settings is not None:
             self._window_settings.setValue("window/geometry", self.saveGeometry())
+            self._window_settings.setValue(
+                "window/content-splitter-sizes",
+                self._content_splitter.sizes(),
+            )
             self._window_settings.sync()
         self._poll_timer.stop()
         self._device_info_timer.stop()

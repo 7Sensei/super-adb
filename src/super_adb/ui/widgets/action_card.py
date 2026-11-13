@@ -1,12 +1,14 @@
 from collections.abc import Callable
 from typing import Literal
 
-from PySide6.QtCore import QSize
+from PySide6.QtCore import QSize, Qt
+from PySide6.QtGui import QFontMetrics, QResizeEvent
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
     QPushButton,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
@@ -32,32 +34,42 @@ class ActionCard(QFrame):
     ) -> None:
         super().__init__(parent)
         self.setObjectName("actionCard")
-        self.setMinimumHeight(148)
+        self.setMinimumHeight(84)
+        self.setMaximumHeight(96)
         self._icon_name = icon_name
         self._theme_manager = theme_manager
         self._variant = variant
+        self._title_text = title
+        self._description_text = description
 
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 14, 16, 14)
-        layout.setSpacing(9)
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(12, 10, 12, 10)
+        layout.setSpacing(12)
 
-        heading = QHBoxLayout()
-        heading.setSpacing(10)
         self._icon = QLabel(self)
         self._icon.setObjectName("actionIcon")
         self._icon.setFixedSize(38, 38)
-        heading.addWidget(self._icon)
+        layout.addWidget(self._icon)
 
-        name = QLabel(title, self)
-        name.setObjectName("actionTitle")
-        name.setWordWrap(True)
-        heading.addWidget(name, 1)
-        layout.addLayout(heading)
+        details = QVBoxLayout()
+        details.setContentsMargins(0, 0, 0, 0)
+        details.setSpacing(4)
+        self._title = QLabel(title, self)
+        self._title.setObjectName("actionTitle")
+        self._title.setWordWrap(False)
+        self._title.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        details.addWidget(self._title)
 
-        detail = QLabel(description, self)
-        detail.setObjectName("actionDescription")
-        detail.setWordWrap(True)
-        layout.addWidget(detail, 1)
+        self._description = QLabel(description, self)
+        self._description.setObjectName("actionDescription")
+        self._description.setWordWrap(False)
+        self._description.setSizePolicy(
+            QSizePolicy.Policy.Ignored,
+            QSizePolicy.Policy.Preferred,
+        )
+        self._description.setToolTip(description)
+        details.addWidget(self._description)
+        layout.addLayout(details, 1)
 
         self.button = QPushButton("Jalankan", self)
         self.button.setObjectName(f"action-{action_id}")
@@ -69,6 +81,21 @@ class ActionCard(QFrame):
 
         theme_manager.themeChanged.connect(self._set_icon)
         self._set_icon(theme_manager.tokens)
+
+    def resizeEvent(self, event: QResizeEvent) -> None:
+        super().resizeEvent(event)
+        metrics = QFontMetrics(self._title.font())
+        self._title.setText(
+            metrics.elidedText(self._title_text, Qt.TextElideMode.ElideRight, self._title.width())
+        )
+        metrics = QFontMetrics(self._description.font())
+        self._description.setText(
+            metrics.elidedText(
+                self._description_text,
+                Qt.TextElideMode.ElideRight,
+                self._description.width(),
+            )
+        )
 
     def set_variant(self, variant: ActionVariant) -> None:
         if variant == self._variant:

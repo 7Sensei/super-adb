@@ -1,7 +1,8 @@
 from concurrent.futures import Executor, Future
 
+import pytest
 from PySide6.QtCore import QSettings, Qt
-from PySide6.QtWidgets import QApplication, QComboBox, QPushButton
+from PySide6.QtWidgets import QApplication, QComboBox, QFrame, QPushButton, QScrollArea
 
 from super_adb.models.app_settings import AppSettings
 from super_adb.models.device import Device
@@ -179,6 +180,44 @@ def test_action_buttons_set_primary_and_danger_variants(qtbot, qapp: QApplicatio
     assert install is not None and install.property("variant") == "primary"
     assert uninstall is not None and uninstall.property("variant") == "danger"
     assert connect is not None and connect.property("variant") == "primary"
+
+
+def test_system_action_cards_fit_compact_grid(qtbot, qapp: QApplication) -> None:
+    window = build_window(qapp)
+    qtbot.addWidget(window)
+    window.resize(1280, 720)
+    window.show()
+    qtbot.wait(50)
+
+    system_page = window.page_stack.widget(0)
+    cards = system_page.findChildren(QFrame, "actionCard")
+    scroll = system_page.findChild(QScrollArea, "actionPageScroll")
+    assert len(cards) == 5
+    assert scroll is not None
+    assert all(card.maximumHeight() <= 96 for card in cards)
+    assert system_page._columns == 2
+    assert scroll.verticalScrollBar().maximum() == 0
+
+
+def test_splitter_ratio_is_persisted(qtbot, qapp: QApplication, tmp_path) -> None:
+    window_settings = QSettings(str(tmp_path / "window.ini"), QSettings.Format.IniFormat)
+    window = build_window(qapp, window_settings)
+    qtbot.addWidget(window)
+    window.show()
+    qtbot.wait(50)
+    window._content_splitter.setSizes([550, 450])
+    window.close()
+
+    saved_sizes = window_settings.value("window/content-splitter-sizes")
+    assert saved_sizes is not None
+    assert len(saved_sizes) == 2
+
+    restored = build_window(qapp, window_settings)
+    qtbot.addWidget(restored)
+    restored.show()
+    qtbot.wait(50)
+    sizes = restored._content_splitter.sizes()
+    assert sizes[0] / sum(sizes) == pytest.approx(0.55, abs=0.05)
 
 
 def test_main_window_polls_and_displays_devices(qtbot, qapp: QApplication) -> None:

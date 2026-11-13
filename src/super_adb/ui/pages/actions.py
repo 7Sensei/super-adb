@@ -1,6 +1,7 @@
 from collections.abc import Callable
 from typing import TypeAlias
 
+from PySide6.QtGui import QResizeEvent
 from PySide6.QtWidgets import QGridLayout, QScrollArea, QVBoxLayout, QWidget
 
 from super_adb.ui.theme.manager import ThemeManager
@@ -33,12 +34,14 @@ class ActionPage(QWidget):
         scroll.viewport().setObjectName("actionPageViewport")
         content = QWidget(scroll)
         content.setObjectName("actionPageContent")
-        grid = QGridLayout(content)
-        grid.setContentsMargins(4, 4, 8, 8)
-        grid.setHorizontalSpacing(12)
-        grid.setVerticalSpacing(12)
-        grid.setColumnStretch(0, 1)
-        grid.setColumnStretch(1, 1)
+        self._grid = QGridLayout(content)
+        self._grid.setContentsMargins(4, 4, 8, 8)
+        self._grid.setHorizontalSpacing(12)
+        self._grid.setVerticalSpacing(12)
+        self._grid.setColumnStretch(0, 1)
+        self._grid.setColumnStretch(1, 1)
+        self._cards: list[ActionCard] = []
+        self._columns = 2
         for index, (action_id, title, description, icon, callback, variant) in enumerate(actions):
             card = ActionCard(
                 action_id,
@@ -50,6 +53,17 @@ class ActionPage(QWidget):
                 variant,
                 content,
             )
-            grid.addWidget(card, index // 2, index % 2)
+            self._cards.append(card)
+            self._grid.addWidget(card, index // self._columns, index % self._columns)
         scroll.setWidget(content)
         layout.addWidget(scroll)
+
+    def resizeEvent(self, event: QResizeEvent) -> None:
+        super().resizeEvent(event)
+        columns = 2 if self.width() >= 720 else 1
+        if columns == self._columns:
+            return
+        self._columns = columns
+        for index, card in enumerate(self._cards):
+            self._grid.removeWidget(card)
+            self._grid.addWidget(card, index // columns, index % columns)
