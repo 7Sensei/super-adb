@@ -16,10 +16,15 @@ from PySide6.QtWidgets import (
 from super_adb.models.app_settings import ThemeMode
 from super_adb.models.device import Device
 from super_adb.ui.icons import load_icon
+from super_adb.ui.pages.apps import AppsPage
+from super_adb.ui.pages.network import NetworkPage
+from super_adb.ui.pages.settings import SettingsPage
+from super_adb.ui.pages.system import SystemPage
 from super_adb.ui.theme.manager import ThemeManager
 from super_adb.ui.theme.tokens import ThemeTokens, tokens_for
 from super_adb.ui.widgets.device_chips import DeviceChips
 from super_adb.ui.widgets.icon_rail import IconRail
+from super_adb.ui.widgets.log_panel import LogPanel
 from super_adb.ui.widgets.status_bar import StatusBar
 from super_adb.viewmodels.main_viewmodel import MainViewModel
 from super_adb.viewmodels.settings_viewmodel import SettingsViewModel
@@ -51,6 +56,9 @@ class MainWindow(QMainWindow):
 
         self._build_ui()
         self._connect_viewmodels()
+        self._log_panel.append_text("Terminal siap...")
+        self._log_panel.append_text(f"Font aktif: {self._settings_viewmodel.font_family.value}")
+        self._log_panel.append_text("-" * 30)
         self._install_shortcuts()
         self._set_page("system")
         self._apply_theme(self._settings_viewmodel.theme_mode.value)
@@ -166,37 +174,19 @@ class MainWindow(QMainWindow):
         splitter.setChildrenCollapsible(False)
         self._page_stack = QStackedWidget(splitter)
         self._page_stack.setObjectName("pageStack")
-        for page in ("system", "apps", "network", "settings"):
-            self._page_stack.addWidget(self._placeholder_page(page, splitter))
-
-        log_placeholder = QFrame(splitter)
-        log_placeholder.setObjectName("panel")
-        log_layout = QVBoxLayout(log_placeholder)
-        log_layout.setContentsMargins(16, 14, 16, 14)
-        log_title = QLabel("Terminal Log")
-        log_title.setObjectName("panelTitle")
-        log_layout.addWidget(log_title)
-        log_text = QLabel("Panel log tersedia pada tahap berikutnya.")
-        log_text.setObjectName("mutedText")
-        log_layout.addWidget(log_text)
+        self._page_stack.addWidget(SystemPage(self._viewmodel, self._theme_manager))
+        self._page_stack.addWidget(AppsPage(self._viewmodel, self._theme_manager))
+        self._page_stack.addWidget(NetworkPage(self._viewmodel, self._theme_manager))
+        self._page_stack.addWidget(
+            SettingsPage(self._settings_viewmodel, self._theme_manager)
+        )
+        self._log_panel = LogPanel(splitter)
         splitter.addWidget(self._page_stack)
-        splitter.addWidget(log_placeholder)
+        splitter.addWidget(self._log_panel)
         splitter.setStretchFactor(0, 3)
         splitter.setStretchFactor(1, 1)
         layout.addWidget(splitter, 1)
         return center
-
-    def _placeholder_page(self, page: str, parent: QWidget) -> QFrame:
-        frame = QFrame(parent)
-        frame.setObjectName(f"{page}Page")
-        frame.setProperty("panel", True)
-        layout = QVBoxLayout(frame)
-        layout.setContentsMargins(20, 20, 20, 20)
-        text = QLabel("Konten halaman akan ditambahkan pada tahap berikutnya.", frame)
-        text.setObjectName("mutedText")
-        layout.addWidget(text)
-        layout.addStretch(1)
-        return frame
 
     def _build_device_placeholder(self, parent: QWidget) -> QFrame:
         panel = QFrame(parent)
@@ -221,6 +211,7 @@ class MainWindow(QMainWindow):
         self._viewmodel.devices.subscribe(self._update_device_count)
         self._viewmodel.status.subscribe(self._status_bar.set_status)
         self._viewmodel.is_busy.subscribe(self._update_busy)
+        self._viewmodel.log_line.connect(self._log_panel.append_entry)
         self._settings_viewmodel.theme_mode.subscribe(self._apply_theme)
         self._settings_viewmodel.font_family.subscribe(self._apply_font)
         self._update_device_count(self._viewmodel.devices.value)

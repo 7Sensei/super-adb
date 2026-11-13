@@ -24,6 +24,12 @@ QFrame#surface, QFrame#panel, QFrame#card {
     border-radius: 14px;
 }
 
+QFrame#actionCard, QFrame#settingsCard, QFrame#logPanel {
+    background-color: $surface;
+    border: 1px solid $border;
+    border-radius: 14px;
+}
+
 QFrame[panel="true"] {
     background-color: $surface;
     border: 1px solid $border;
@@ -87,6 +93,18 @@ QPlainTextEdit, QTextEdit, QScrollArea {
     border-radius: 10px;
 }
 
+QScrollArea#actionPageScroll {
+    background-color: transparent;
+    border: 0;
+}
+
+QPlainTextEdit#logOutput {
+    background-color: $raised;
+    border: 1px solid $border;
+    border-radius: 10px;
+    padding: 8px;
+}
+
 QScrollBar:vertical {
     background: $surface;
     width: 10px;
@@ -123,6 +141,21 @@ QLabel#pageDescription, QLabel#mutedText, QLabel#deviceChipLabel {
 QLabel#panelTitle {
     font-size: 12pt;
     font-weight: bold;
+}
+
+QLabel#actionTitle {
+    font-weight: bold;
+}
+
+QLabel#actionDescription {
+    color: $muted;
+}
+
+QLabel#actionIcon {
+    background-color: $raised;
+    border: 1px solid $border;
+    border-radius: 10px;
+    padding: 6px;
 }
 
 QLabel#busyPill {

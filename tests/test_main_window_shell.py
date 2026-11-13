@@ -1,20 +1,26 @@
 from concurrent.futures import Executor, Future
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QComboBox, QPushButton
 
 from super_adb.models.app_settings import AppSettings
 from super_adb.models.device import Device
 from super_adb.models.device_info import DeviceInfo
 from super_adb.services.settings_store import SettingsStore
 from super_adb.ui.main_window import MainWindow
+from super_adb.ui.pages import apps as apps_page
+from super_adb.ui.pages import network as network_page
 from super_adb.ui.theme.manager import ThemeManager
 from super_adb.viewmodels.main_viewmodel import MainViewModel
 from super_adb.viewmodels.settings_viewmodel import SettingsViewModel
 
 
 class FakeAdb:
+    def __init__(self) -> None:
+        self.commands: list[list[str]] = []
+
     def execute(self, command, on_line):
+        self.commands.append(command)
         if command[1:2] == ["devices"]:
             return "List of devices attached\nserial-1\tdevice\n"
         return ""
@@ -77,6 +83,33 @@ def test_main_window_builds_shell_and_navigation(qtbot, qapp: QApplication) -> N
     assert window.icon_rail.current_page == "apps"
 
 
+def test_pages_expose_all_existing_actions_and_settings(qtbot, qapp: QApplication) -> None:
+    window = build_window(qapp)
+    qtbot.addWidget(window)
+
+    expected_actions = (
+        {
+            "action-check-devices",
+            "action-basic-info",
+            "action-hardware",
+            "action-battery",
+            "action-reboot",
+        },
+        {"action-install-apk", "action-list-apps", "action-uninstall-app"},
+        {"action-enable-tcpip", "action-connect-wireless", "action-disconnect-devices"},
+    )
+    for index, expected in enumerate(expected_actions):
+        page = window.page_stack.widget(index)
+        actual = {button.objectName() for button in page.findChildren(QPushButton)}
+        assert actual == expected
+
+    settings = window.page_stack.widget(3)
+    theme_selector = settings.findChild(QComboBox, "themeSelector")
+    assert theme_selector is not None
+    theme_selector.setCurrentIndex(theme_selector.findData("light"))
+    assert window._settings_viewmodel.theme_mode.value == "light"
+
+
 def test_main_window_polls_and_displays_devices(qtbot, qapp: QApplication) -> None:
     window = build_window(qapp)
     qtbot.addWidget(window)
@@ -94,3 +127,39 @@ def test_main_window_polls_and_displays_devices(qtbot, qapp: QApplication) -> No
 
     qtbot.mouseClick(window._theme_button, Qt.MouseButton.LeftButton)
     assert window._settings_viewmodel.theme_mode.value == "light"
+
+
+def test_page_actions_preserve_install_uninstall_and_wireless_flows(
+    qtbot,
+    qapp: QApplication,
+    monkeypatch,
+) -> None:
+    window = build_window(qapp)
+    qtbot.addWidget(window)
+    window.show()
+    viewmodel = window._viewmodel
+    adb = viewmodel._adb_service
+    adb.commands.clear()
+
+    monkeypatch.setattr(apps_page, "choose_apk_file", lambda parent: r"C:\temp\sample.apk")
+    monkeypatch.setattr(apps_page, "ask_package_name", lambda parent: "com.example.sample")
+    window.icon_rail.pageRequested.emit("apps")
+    for action_id in ("install-apk", "uninstall-app"):
+        button = window.findChild(QPushButton, f"action-{action_id}")
+        assert button is not None
+        qtbot.mouseClick(button, Qt.MouseButton.LeftButton)
+
+    monkeypatch.setattr(network_page, "ask_device_ip", lambda parent: "192.0.2.1")
+    window.icon_rail.pageRequested.emit("network")
+    connect_button = window.findChild(QPushButton, "action-connect-wireless")
+    assert connect_button is not None
+    qtbot.mouseClick(connect_button, Qt.MouseButton.LeftButton)
+
+    assert adb.commands == [
+        ["adb", "-s", "serial-1", "install", r"C:\temp\sample.apk"],
+        ["adb", "-s", "serial-1", "uninstall", "com.example.sample"],
+        ["adb", "connect", "192.0.2.1"],
+    ]
+    assert "Menjalankan: adb -s serial-1 install C:\\temp\\sample.apk" in (
+        window._log_panel.output.toPlainText()
+    )
