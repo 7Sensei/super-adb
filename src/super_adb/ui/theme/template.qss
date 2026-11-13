@@ -11,7 +11,20 @@ QMainWindow, QDialog {
     background-color: $bg;
 }
 
+QFrame#topBar, QWidget#statusStrip, QFrame#devicePlaceholder,
+QWidget#iconRail {
+    background-color: $surface;
+    border: 1px solid $border;
+    border-radius: 14px;
+}
+
 QFrame#surface, QFrame#panel, QFrame#card {
+    background-color: $surface;
+    border: 1px solid $border;
+    border-radius: 14px;
+}
+
+QFrame[panel="true"] {
     background-color: $surface;
     border: 1px solid $border;
     border-radius: 14px;
@@ -32,6 +45,25 @@ QPushButton, QToolButton, QComboBox, QLineEdit {
 
 QPushButton:hover, QToolButton:hover, QComboBox:hover {
     border-color: $accent;
+}
+
+QToolButton#brandMark {
+    background-color: $accent;
+    color: $accent_text;
+    border: 0;
+    border-radius: 10px;
+    font-weight: bold;
+    padding: 0;
+}
+
+QToolButton[active="true"] {
+    background-color: $accent;
+    border-color: $accent;
+}
+
+QToolButton#rail-system, QToolButton#rail-apps, QToolButton#rail-network,
+QToolButton#rail-settings, QToolButton#refreshDevices {
+    padding: 0;
 }
 
 QPushButton:disabled, QToolButton:disabled {
@@ -72,4 +104,52 @@ QToolTip {
     color: $text;
     border: 1px solid $border;
     padding: 5px;
+}
+
+QLabel#appTitle {
+    font-size: 13pt;
+    font-weight: bold;
+}
+
+QLabel#pageTitle {
+    font-size: 18pt;
+    font-weight: bold;
+}
+
+QLabel#pageDescription, QLabel#mutedText, QLabel#deviceChipLabel {
+    color: $muted;
+}
+
+QLabel#panelTitle {
+    font-size: 12pt;
+    font-weight: bold;
+}
+
+QLabel#busyPill {
+    background-color: $surface;
+    border: 1px solid $border;
+    border-radius: 8px;
+    color: $muted;
+    padding: 4px 8px;
+    font-size: 8pt;
+    font-weight: bold;
+}
+
+QLabel#busyPill[active="true"] {
+    background-color: $accent;
+    border-color: $accent;
+    color: $accent_text;
+}
+
+QLabel#elapsedTime, QLabel#deviceCount, QLabel#statusMessage {
+    color: $muted;
+}
+
+QFrame#railSeparator, QFrame#topBarSeparator, QFrame#statusSeparator {
+    color: $border;
+}
+
+QSplitter::handle {
+    background-color: $border;
+    height: 5px;
 }
