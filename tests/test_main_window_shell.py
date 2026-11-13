@@ -1,9 +1,12 @@
+import os
+import sys
 from concurrent.futures import Executor, Future
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 from PySide6.QtCore import QSettings, Qt
-from PySide6.QtGui import QColor, QPalette
+from PySide6.QtGui import QColor, QFont, QFontDatabase, QPalette
 from PySide6.QtWidgets import QApplication, QComboBox, QFrame, QPushButton, QScrollArea, QWidget
 
 from super_adb.models.app_settings import AppSettings
@@ -19,6 +22,18 @@ from super_adb.ui.theme.manager import ThemeManager
 from super_adb.ui.theme.tokens import THEMES
 from super_adb.viewmodels.main_viewmodel import MainViewModel
 from super_adb.viewmodels.settings_viewmodel import SettingsViewModel
+
+
+def latin_font_families() -> list[str]:
+    families = QFontDatabase.families(QFontDatabase.WritingSystem.Latin)
+    if not families and sys.platform == "win32":
+        fonts_dir = Path(os.environ.get("WINDIR", r"C:\Windows")) / "Fonts"
+        for filename in ("segoeui.ttf", "arial.ttf", "consola.ttf"):
+            font_path = fonts_dir / filename
+            if font_path.exists():
+                QFontDatabase.addApplicationFont(str(font_path))
+        families = QFontDatabase.families(QFontDatabase.WritingSystem.Latin)
+    return families
 
 
 class FakeAdb:
@@ -175,6 +190,122 @@ def test_system_theme_change_keeps_system_mode_selected_and_persisted(
     assert settings_page.theme_selector.currentData() == "system"
     assert window._settings_viewmodel.theme_mode.value == "system"
     assert store.load().theme_mode == "system"
+
+
+def test_available_saved_font_is_applied_at_startup(
+    qtbot,
+    qapp: QApplication,
+    tmp_path,
+) -> None:
+    families = latin_font_families()
+    if not families:
+        pytest.skip("Tidak ada font Latin terpasang.")
+    family = next((name for name in families if QFontDatabase.hasFamily(name)), None)
+    if family is None:
+        pytest.skip("Tidak ada keluarga font tersedia.")
+
+    original_font = qapp.font()
+    store = JsonSettingsStore(tmp_path / "settings.json")
+    store.save(AppSettings(theme_mode="dark", font_family=family))
+    window = build_window(qapp, settings_store=store)
+    qtbot.addWidget(window)
+
+    assert qapp.font().family() == family
+
+    window.close()
+    qapp.setFont(original_font)
+
+
+def test_selecting_font_only_changes_preview_until_applied(
+    qtbot,
+    qapp: QApplication,
+    tmp_path,
+) -> None:
+    families = latin_font_families()
+    initial = next((name for name in families if name != "Arial"), None)
+    selected = next((name for name in families if name != initial and name != "Arial"), None)
+    if initial is None or selected is None:
+        pytest.skip("Diperlukan dua keluarga font Latin selain Arial.")
+
+    original_font = qapp.font()
+    store = JsonSettingsStore(tmp_path / "settings.json")
+    store.save(AppSettings(theme_mode="dark", font_family="Arial"))
+    window = build_window(qapp, settings_store=store)
+    qtbot.addWidget(window)
+    window.show()
+    settings_page = window.page_stack.widget(3)
+    assert settings_page.font_list.minimumHeight() >= 240
+    assert settings_page._fonts == sorted(settings_page._fonts, key=str.casefold)
+    assert len({family.casefold() for family in settings_page._fonts}) == len(
+        settings_page._fonts
+    )
+    settings_page.font_search.setText(selected.upper())
+    assert all(
+        selected.casefold() in settings_page.font_list.item(index).text().casefold()
+        for index in range(settings_page.font_list.count())
+    )
+    settings_page.font_search.clear()
+    item = settings_page.font_list.findItems(selected, Qt.MatchFlag.MatchExactly)[0]
+    settings_page.font_list.setCurrentItem(item)
+
+    assert settings_page.preview.text() == "Pratinjau: The quick brown fox 0123456789"
+    assert settings_page.preview.font().family() == selected
+    assert qapp.font().family() == "Arial"
+    assert store.load().font_family == "Arial"
+
+    settings_page.apply_font_button.click()
+    assert qapp.font().family() == selected
+    assert store.load().font_family == selected
+
+    window.close()
+    qapp.setFont(original_font)
+
+
+def test_restore_default_font_applies_and_saves_default(
+    qtbot,
+    qapp: QApplication,
+    tmp_path,
+) -> None:
+    original_font = qapp.font()
+    default_family = "Poppins" if QFontDatabase.hasFamily("Poppins") else "Segoe UI"
+    store = JsonSettingsStore(tmp_path / "settings.json")
+    store.save(AppSettings(theme_mode="dark", font_family="Arial"))
+    window = build_window(qapp, settings_store=store)
+    qtbot.addWidget(window)
+    qapp.setFont(QFont("Arial"))
+    settings_page = window.page_stack.widget(3)
+
+    settings_page.default_font_button.click()
+
+    assert qapp.font().family() == default_family
+    assert store.load().font_family == default_family
+
+    window.close()
+    qapp.setFont(original_font)
+
+
+def test_unavailable_saved_font_uses_fallback_without_overwriting_store(
+    qtbot,
+    qapp: QApplication,
+    tmp_path,
+) -> None:
+    latin_font_families()
+    original_font = qapp.font()
+    saved_family = "SuperAdbUnavailableFont"
+    store = JsonSettingsStore(tmp_path / "settings.json")
+    store.save(AppSettings(theme_mode="dark", font_family=saved_family))
+    window = build_window(qapp, settings_store=store)
+    qtbot.addWidget(window)
+    settings_page = window.page_stack.widget(3)
+
+    assert qapp.font().family() == "Segoe UI"
+    assert settings_page.current_font.text() == (
+        f"Font aktif: {saved_family} (tidak tersedia, memakai Segoe UI)"
+    )
+    assert store.load().font_family == saved_family
+
+    window.close()
+    qapp.setFont(original_font)
 
 
 def test_main_window_builds_shell_and_navigation(qtbot, qapp: QApplication) -> None:

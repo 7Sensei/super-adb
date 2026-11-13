@@ -12,10 +12,15 @@ class SettingsViewModel:
         self.theme_mode: Observable[ThemeMode] = Observable(settings.theme_mode)
         self.font_family: Observable[str] = Observable(settings.font_family)
         self._theme_applier: Callable[[ThemeMode], None] | None = None
+        self._font_applier: Callable[[str], None] | None = None
 
     def bind_theme_applier(self, apply_theme: Callable[[ThemeMode], None]) -> None:
         self._theme_applier = apply_theme
         apply_theme(self.theme_mode.value)
+
+    def bind_font_applier(self, apply_font: Callable[[str], None]) -> None:
+        self._font_applier = apply_font
+        apply_font(self.font_family.value)
 
     def set_theme_mode(self, mode: ThemeMode) -> None:
         if mode not in {"light", "dark", "system"}:
@@ -30,10 +35,11 @@ class SettingsViewModel:
     def set_font_family(self, family: str) -> None:
         if not family:
             raise ValueError("Nama font tidak boleh kosong.")
-        if family == self.font_family.value:
-            return
-        self.font_family.value = family
-        self._save()
+        if family != self.font_family.value:
+            self.font_family.value = family
+            self._save()
+        if self._font_applier is not None:
+            self._font_applier(family)
 
     def _save(self) -> None:
         self._store.save(

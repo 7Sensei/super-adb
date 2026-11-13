@@ -3,8 +3,9 @@ import sys
 from collections.abc import Callable
 
 from PySide6.QtCore import QElapsedTimer, QSettings, Qt, QTimer
-from PySide6.QtGui import QCloseEvent, QKeySequence, QShortcut, QShowEvent
+from PySide6.QtGui import QCloseEvent, QFont, QFontDatabase, QKeySequence, QShortcut, QShowEvent
 from PySide6.QtWidgets import (
+    QApplication,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -72,15 +73,20 @@ class MainWindow(QMainWindow):
         self._elapsed = QElapsedTimer()
 
         self._settings_viewmodel.bind_theme_applier(self._theme_manager.apply)
+        self._settings_viewmodel.bind_font_applier(self._apply_font)
         self._build_ui()
         self._connect_viewmodels()
         self._log_panel.append_text("Terminal siap...")
-        self._log_panel.append_text(f"Font aktif: {self._settings_viewmodel.font_family.value}")
+        application = QApplication.instance()
+        active_font = (
+            application.font().family()
+            if isinstance(application, QApplication)
+            else "Segoe UI"
+        )
+        self._log_panel.append_text(f"Font aktif: {active_font}")
         self._log_panel.append_text("-" * 30)
         self._install_shortcuts()
         self._set_page("system")
-        self._apply_font(self._settings_viewmodel.font_family.value)
-
         self._poll_timer = QTimer(self)
         self._poll_timer.setInterval(3000)
         self._poll_timer.timeout.connect(self._viewmodel.poll_devices)
@@ -222,7 +228,6 @@ class MainWindow(QMainWindow):
                 self._viewmodel.status.subscribe(self._status_bar.set_status),
                 self._viewmodel.is_busy.subscribe(self._update_busy),
                 self._viewmodel.log_line.connect(self._log_panel.append_entry),
-                self._settings_viewmodel.font_family.subscribe(self._apply_font),
             ]
         )
         self._update_device_count(self._viewmodel.devices.value)
@@ -289,7 +294,11 @@ class MainWindow(QMainWindow):
                 break
 
     def _apply_font(self, family: str) -> None:
-        self._theme_manager.set_font_family(family)
+        effective_family = family if QFontDatabase.hasFamily(family) else "Segoe UI"
+        self._theme_manager.set_font_family(effective_family)
+        application = QApplication.instance()
+        if isinstance(application, QApplication):
+            application.setFont(QFont(effective_family))
 
     def _refresh_top_bar_icons(self, tokens: ThemeTokens) -> None:
         is_dark = tokens == tokens_for("dark")
