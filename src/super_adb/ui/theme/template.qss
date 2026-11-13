@@ -117,15 +117,39 @@ QPlainTextEdit#logOutput {
 }
 
 QScrollBar:vertical {
-    background: $surface;
-    width: 10px;
-    margin: 2px;
+    background: transparent;
+    width: 8px;
+    margin: 0;
 }
 
-QScrollBar::handle:vertical {
+QScrollBar:horizontal {
+    background: transparent;
+    height: 8px;
+    margin: 0;
+}
+
+QScrollBar::handle:vertical, QScrollBar::handle:horizontal {
     background: $border;
     border-radius: 4px;
     min-height: 24px;
+    min-width: 24px;
+}
+
+QScrollBar::handle:vertical:hover, QScrollBar::handle:horizontal:hover {
+    background: $muted;
+}
+
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+    width: 0;
+    height: 0;
+    border: 0;
+    background: transparent;
+}
+
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical,
+QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
+    background: transparent;
 }
 
 QToolTip {

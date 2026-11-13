@@ -1,6 +1,6 @@
 import threading
 
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QScrollArea, QWidget
 
 from super_adb.ui.icons import load_icon
 from super_adb.ui.qt_dispatcher import QtDispatcher
@@ -51,3 +51,31 @@ def test_lucide_icon_loader_returns_a_valid_icon(qapp: QApplication) -> None:
     icon = load_icon("monitor.svg", THEMES["dark"].accent, size=24)
 
     assert not icon.isNull()
+
+
+def test_scrollbars_are_thin_and_only_visible_when_content_overflows(
+    qtbot,
+    qapp: QApplication,
+) -> None:
+    manager = ThemeManager(qapp)
+    manager.apply("dark")
+
+    area = QScrollArea()
+    area.setWidgetResizable(True)
+    area.resize(200, 120)
+    content = QWidget()
+    content.setMinimumSize(400, 500)
+    area.setWidget(content)
+    qtbot.addWidget(area)
+    area.show()
+    qtbot.wait(20)
+
+    assert area.verticalScrollBar().width() == 8
+    assert area.horizontalScrollBar().height() == 8
+    assert area.verticalScrollBar().isVisible()
+    assert area.horizontalScrollBar().isVisible()
+
+    area.setWidget(QWidget())
+    qtbot.wait(20)
+    assert not area.verticalScrollBar().isVisible()
+    assert not area.horizontalScrollBar().isVisible()
