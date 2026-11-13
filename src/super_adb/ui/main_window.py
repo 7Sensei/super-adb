@@ -3,7 +3,7 @@ import sys
 from collections.abc import Callable
 
 from PySide6.QtCore import QElapsedTimer, QSettings, Qt, QTimer
-from PySide6.QtGui import QCloseEvent, QFont, QFontDatabase, QKeySequence, QShortcut, QShowEvent
+from PySide6.QtGui import QCloseEvent, QFontDatabase, QKeySequence, QShortcut, QShowEvent
 from PySide6.QtWidgets import (
     QApplication,
     QFrame,
@@ -296,9 +296,6 @@ class MainWindow(QMainWindow):
     def _apply_font(self, family: str) -> None:
         effective_family = family if QFontDatabase.hasFamily(family) else "Segoe UI"
         self._theme_manager.set_font_family(effective_family)
-        application = QApplication.instance()
-        if isinstance(application, QApplication):
-            application.setFont(QFont(effective_family))
 
     def _refresh_top_bar_icons(self, tokens: ThemeTokens) -> None:
         is_dark = tokens == tokens_for("dark")

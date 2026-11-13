@@ -2,7 +2,6 @@ QWidget {
     color: $text;
     selection-background-color: $accent;
     selection-color: $accent_text;
-    font-family: "$font_family";
     font-size: 10pt;
 }
 

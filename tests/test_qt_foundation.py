@@ -3,7 +3,8 @@ import sys
 import threading
 from pathlib import Path
 
-from PySide6.QtGui import QFontDatabase, QFontInfo, QPalette
+import pytest
+from PySide6.QtGui import QFont, QFontDatabase, QFontInfo, QPalette
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -121,6 +122,13 @@ def test_log_panel_uses_fixed_pitch_font_and_wrap_toggle(
     if sys.platform == "win32" and not QFontDatabase.hasFamily("Consolas"):
         windows_dir = Path(os.environ.get("WINDIR", r"C:\Windows"))
         QFontDatabase.addApplicationFont(str(windows_dir / "Fonts" / "consola.ttf"))
+    fixed_pitch_families = [
+        family
+        for family in QFontDatabase.families()
+        if QFontInfo(QFont(family)).fixedPitch()
+    ]
+    if not fixed_pitch_families:
+        pytest.skip("Tidak ada font fixed-pitch pada sistem.")
     manager = ThemeManager(qapp, "Arial")
     panel = LogPanel()
     qtbot.addWidget(panel)
@@ -130,7 +138,10 @@ def test_log_panel_uses_fixed_pitch_font_and_wrap_toggle(
     assert panel.wrap_toggle.isChecked()
 
     manager.set_font_family("Arial")
+    manager.apply("light")
+    assert qapp.font().family() == "Arial"
     assert QFontInfo(panel.output.font()).fixedPitch()
+    assert "font-family" not in qapp.styleSheet()
     panel.wrap_toggle.setChecked(False)
     assert panel.output.lineWrapMode() == QPlainTextEdit.LineWrapMode.NoWrap
     panel.wrap_toggle.setChecked(True)

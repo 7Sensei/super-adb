@@ -2,7 +2,7 @@ from pathlib import Path
 from string import Template
 
 from PySide6.QtCore import QObject, Qt, Signal
-from PySide6.QtGui import QColor, QGuiApplication, QPalette
+from PySide6.QtGui import QColor, QFont, QGuiApplication, QPalette
 from PySide6.QtWidgets import QApplication
 
 from super_adb.models.app_settings import ThemeMode
@@ -33,18 +33,14 @@ class ThemeManager(QObject):
         self.tokens = tokens_for(resolved)
         self._set_color_scheme(mode)
         self._set_palette()
-        values = self.tokens.as_qss()
-        values["font_family"] = self.font_family.replace('"', "")
-        self._application.setStyleSheet(self._template.substitute(values))
+        self._application.setStyleSheet(self._template.substitute(self.tokens.as_qss()))
         self.themeChanged.emit(self.tokens)
 
     def set_font_family(self, family: str) -> None:
         if not family:
             raise ValueError("Nama font tidak boleh kosong.")
         self.font_family = family
-        values = self.tokens.as_qss()
-        values["font_family"] = self.font_family.replace('"', "")
-        self._application.setStyleSheet(self._template.substitute(values))
+        self._application.setFont(QFont(family))
 
     def _resolve_mode(self, mode: ThemeMode) -> ThemeMode:
         if mode != "system":
@@ -109,7 +105,5 @@ class ThemeManager(QObject):
             )
             self.tokens = tokens_for(resolved)
             self._set_palette()
-            values = self.tokens.as_qss()
-            values["font_family"] = self.font_family.replace('"', "")
-            self._application.setStyleSheet(self._template.substitute(values))
+            self._application.setStyleSheet(self._template.substitute(self.tokens.as_qss()))
             self.themeChanged.emit(self.tokens)
