@@ -79,7 +79,7 @@ class MainWindow(QMainWindow):
         self._log_panel.append_text("Terminal siap...")
         application = QApplication.instance()
         active_font = (
-            application.font().family()
+            self._theme_manager.font_family
             if isinstance(application, QApplication)
             else "Segoe UI"
         )
@@ -202,7 +202,11 @@ class MainWindow(QMainWindow):
         self._page_stack.addWidget(SystemPage(self._viewmodel, self._theme_manager))
         self._page_stack.addWidget(AppsPage(self._viewmodel, self._theme_manager))
         self._page_stack.addWidget(NetworkPage(self._viewmodel, self._theme_manager))
-        self._settings_page = SettingsPage(self._settings_viewmodel, self._theme_manager)
+        self._settings_page = SettingsPage(
+            self._settings_viewmodel,
+            self._theme_manager,
+            self._apply_font,
+        )
         self._page_stack.addWidget(self._settings_page)
         self._log_panel = LogPanel(splitter)
         splitter.addWidget(self._page_stack)
@@ -295,8 +299,30 @@ class MainWindow(QMainWindow):
                 break
 
     def _apply_font(self, family: str) -> None:
-        effective_family = family if QFontDatabase.hasFamily(family) else "Segoe UI"
-        self._theme_manager.set_font_family(effective_family)
+        if QFontDatabase.hasFamily(family):
+            effective_family = family
+        elif QFontDatabase.hasFamily("Segoe UI"):
+            effective_family = "Segoe UI"
+        else:
+            available_families = QFontDatabase.families()
+            if not available_families:
+                # Qt's offscreen platform may expose no font database at all.
+                return
+            system_family = QFontDatabase.systemFont(
+                QFontDatabase.SystemFont.GeneralFont
+            ).family()
+            effective_family = (
+                system_family
+                if QFontDatabase.hasFamily(system_family)
+                else available_families[0]
+            )
+        updates_were_enabled = self.updatesEnabled()
+        # Qt style sheets own application fonts; QApplication.setFont() is ineffective here.
+        self.setUpdatesEnabled(False)
+        try:
+            self._theme_manager.set_font_family(effective_family)
+        finally:
+            self.setUpdatesEnabled(updates_were_enabled)
 
     def _refresh_top_bar_icons(self, tokens: ThemeTokens) -> None:
         is_dark = tokens == tokens_for("dark")

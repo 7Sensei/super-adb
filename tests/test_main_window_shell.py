@@ -1,3 +1,4 @@
+import hashlib
 import os
 import sys
 import time
@@ -212,7 +213,9 @@ def test_available_saved_font_is_applied_at_startup(
     window = build_window(qapp, settings_store=store)
     qtbot.addWidget(window)
 
-    assert qapp.font().family() == family
+    assert window._theme_manager.font_family == family
+    assert f'font-family: "{family}"' in qapp.styleSheet()
+    assert qapp.font() == original_font
 
     window.close()
     qapp.setFont(original_font)
@@ -263,7 +266,7 @@ def test_selecting_font_only_changes_preview_until_applied(
 
     assert settings_page.preview.text() == "Pratinjau: The quick brown fox 0123456789"
     assert settings_page.preview.font().family() == selected
-    assert qapp.font().family() == "Arial"
+    assert qapp.font().family() == original_font.family()
     assert store.load().font_family == "Arial"
 
     started = time.perf_counter()
@@ -274,8 +277,9 @@ def test_selecting_font_only_changes_preview_until_applied(
         timeout=1000,
     )
     elapsed = time.perf_counter() - started
-    assert qapp.font().family() == selected
-    assert QFontInfo(qapp.font()).family() == selected
+    assert window._theme_manager.font_family == selected
+    assert f'font-family: "{selected}"' in qapp.styleSheet()
+    assert qapp.font() == original_font
     assert store.load().font_family == selected
     assert elapsed < 1
     assert settings_page.font_list.count() == initial_count
@@ -304,7 +308,7 @@ def test_restore_default_font_applies_and_saves_default(
         timeout=1000,
     )
 
-    assert qapp.font().family() == default_family
+    assert window._theme_manager.font_family == default_family
     assert store.load().font_family == default_family
 
     window.close()
@@ -333,7 +337,7 @@ def test_font_application_sequence_is_deterministic(
             lambda family=family: page.current_font.text() == f"Font aktif: {family}",
             timeout=1000,
         )
-        assert qapp.font().family() == family
+        assert window._theme_manager.font_family == family
         assert store.load().font_family == family
 
     window.close()
@@ -436,6 +440,7 @@ def test_native_font_change_rerenders_application_widgets(
         window._set_page("settings")
         qapp.processEvents()
         settings_page = window._settings_page
+        settings_page.current_font.setText("Font aktif: Segoe UI")
         captures["label Pengaturan"] = (
             QFontInfo(settings_page.current_font.font()),
             settings_page.current_font.grab().toImage(),
@@ -459,14 +464,20 @@ def test_native_font_change_rerenders_application_widgets(
     unchanged = []
     for label, (before_font, before_image) in before.items():
         after_font, after_image = after[label]
-        same_pixels = (
-            before_image.size() == after_image.size()
-            and before_image.convertToFormat(QImage.Format.Format_ARGB32).bits().tobytes()
-            == after_image.convertToFormat(QImage.Format.Format_ARGB32).bits().tobytes()
-        )
-        if same_pixels:
+        before_image = before_image.convertToFormat(QImage.Format.Format_ARGB32)
+        after_image = after_image.convertToFormat(QImage.Format.Format_ARGB32)
+        before_hash = hashlib.sha256(
+            f"{before_image.width()}x{before_image.height()}".encode()
+            + before_image.bits().tobytes()
+        ).hexdigest()
+        after_hash = hashlib.sha256(
+            f"{after_image.width()}x{after_image.height()}".encode()
+            + after_image.bits().tobytes()
+        ).hexdigest()
+        if before_hash == after_hash:
             unchanged.append(
-                f"{label}: QFontInfo {before_font.family()} -> {after_font.family()}"
+                f"{label}: QFontInfo {before_font.family()} -> {after_font.family()}, "
+                f"image hash {before_hash}"
             )
 
     assert not unchanged, "Widget tidak merender ulang setelah ganti font: " + "; ".join(
@@ -491,7 +502,7 @@ def test_unavailable_saved_font_uses_fallback_without_overwriting_store(
     qtbot.addWidget(window)
     settings_page = window.page_stack.widget(3)
 
-    assert qapp.font().family() == "Segoe UI"
+    assert window._theme_manager.font_family == "Segoe UI"
     assert settings_page.current_font.text() == (
         f"Font aktif: {saved_family} (tidak tersedia, memakai Segoe UI)"
     )

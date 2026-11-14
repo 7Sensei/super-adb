@@ -3,6 +3,7 @@ QWidget {
     selection-background-color: $accent;
     selection-color: $accent_text;
     font-size: 10pt;
+    font-family: "$font_family";
 }
 
 QMainWindow, QDialog, QWidget#mainSurface {
@@ -177,6 +178,7 @@ QPlainTextEdit#logOutput {
     border: 1px solid $border;
     border-radius: 10px;
     padding: 8px;
+    font-family: "Cascadia Mono", "Consolas", monospace;
 }
 
 QScrollBar:vertical {
