@@ -22,6 +22,7 @@ class LogcatParser:
             raw = raw[: _MAX_LINE_LENGTH - 1] + "…"
 
         if _BUFFER_SEPARATOR_PATTERN.match(raw):
+            self._last_thread_entry = None
             return self._entry(
                 time=None,
                 pid=None,

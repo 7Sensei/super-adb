@@ -180,6 +180,7 @@ def test_stream_stop_only_terminates_its_process_and_on_end_is_once() -> None:
         wait_for_end(end_events[0])
 
         assert end_calls[0] == [(-15, None)]
+        assert processes[0].terminate_calls == 1
         assert end_events[1].is_set() is False
         assert processes[1].poll() is None
 

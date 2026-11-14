@@ -63,11 +63,9 @@ class _StreamHandle:
         self._process_lock = threading.Lock()
         self._process: subprocess.Popen[str] | None = None
         self._thread: threading.Thread | None = None
-        self._done = threading.Event()
 
     def stop(self) -> None:
         self.cancel_token.cancel()
-        self._terminate_current()
 
     def _attach_process(self, process: subprocess.Popen[str]) -> None:
         with self._process_lock:
@@ -244,7 +242,6 @@ class SubprocessLogcatService:
             message = f"Gagal menjalankan logcat: {error}"
             handle._terminate_current()
         finally:
-            handle._done.set()
             self._remove_stream(handle)
             handle.on_end(returncode, message)
 

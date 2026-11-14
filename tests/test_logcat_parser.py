@@ -71,3 +71,11 @@ def test_parser_sequence_continues_after_context_reset() -> None:
     assert first is not None
     assert second is not None
     assert second.seq == first.seq + 1
+
+
+def test_buffer_separator_does_not_inherit_previous_entry_for_broken_line() -> None:
+    parser = LogcatParser()
+    parser.parse_line("06-15 14:32:10.123 1 2 I Tag: message")
+    parser.parse_line("--------- beginning of system")
+
+    assert parser.parse_line("broken line after buffer separator") is None
