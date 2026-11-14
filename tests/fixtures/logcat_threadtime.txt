@@ -1,0 +1,6 @@
+--------- beginning of main
+06-15 14:32:10.123  2147  2189 I Activity Manager: Activity resumed
+06-15 14:32:10.124  2147  2189 D Custom Tag: 
+06-15 14:32:10.125  9876543210  9876543211 W Unicode Worker: Started with 日本語 and 😀
+06-15 14:32:10.126  9876543210  9876543211 E Multi Line Tag: first line
+    continuation detail
