@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 from PySide6.QtCore import QSettings, Qt
-from PySide6.QtGui import QColor, QFont, QFontDatabase, QFontInfo, QPalette
+from PySide6.QtGui import QColor, QFont, QFontDatabase, QFontInfo, QImage, QPalette
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QComboBox, QFrame, QPushButton, QScrollArea, QWidget
 
@@ -396,6 +396,85 @@ def test_font_buttons_are_right_aligned_primary_and_width_stable(
     assert page.apply_font_button.width() == initial_width
 
     window.close()
+
+
+def test_native_font_change_rerenders_application_widgets(
+    qtbot,
+    qapp: QApplication,
+    tmp_path,
+) -> None:
+    if qapp.platformName() != "windows":
+        pytest.skip("Regresi font visual harus dijalankan pada Qt native Windows.")
+    if not all(QFontDatabase.hasFamily(family) for family in ("Segoe UI", "Comic Sans MS")):
+        pytest.skip("Diperlukan font Segoe UI dan Comic Sans MS.")
+
+    original_font = qapp.font()
+    store = JsonSettingsStore(tmp_path / "settings.json")
+    store.save(AppSettings(theme_mode="dark", font_family="Segoe UI"))
+    window = build_window(qapp, settings_store=store)
+    qtbot.addWidget(window)
+    window.resize(1400, 850)
+    window.show()
+    qtbot.wait(100)
+
+    def snapshots() -> dict[str, tuple[QFontInfo, QImage]]:
+        captures: dict[str, tuple[QFontInfo, QImage]] = {}
+        window._set_page("system")
+        qapp.processEvents()
+        system_widgets = {
+            "judul top bar": window.findChild(QWidget, "appTitle"),
+            "judul halaman": window._page_title,
+            "judul kartu aksi": window.findChild(QWidget, "actionTitle"),
+            "tombol aksi": window.findChild(QPushButton, "action-hardware"),
+            "label panel perangkat": window._device_panel.device_name,
+            "label status": window._status_bar.status_label,
+        }
+        for label, widget in system_widgets.items():
+            assert widget is not None
+            captures[label] = (QFontInfo(widget.font()), widget.grab().toImage())
+
+        window._set_page("settings")
+        qapp.processEvents()
+        settings_page = window._settings_page
+        captures["label Pengaturan"] = (
+            QFontInfo(settings_page.current_font.font()),
+            settings_page.current_font.grab().toImage(),
+        )
+        selector = settings_page.theme_selector
+        selector.showPopup()
+        qtbot.wait(40)
+        popup = selector.view()
+        captures["item popup combobox"] = (QFontInfo(popup.font()), popup.grab().toImage())
+        selector.hidePopup()
+        qapp.processEvents()
+        return captures
+
+    window._apply_font("Segoe UI")
+    qtbot.wait(50)
+    before = snapshots()
+    window._apply_font("Comic Sans MS")
+    qtbot.wait(100)
+    after = snapshots()
+
+    unchanged = []
+    for label, (before_font, before_image) in before.items():
+        after_font, after_image = after[label]
+        same_pixels = (
+            before_image.size() == after_image.size()
+            and before_image.convertToFormat(QImage.Format.Format_ARGB32).bits().tobytes()
+            == after_image.convertToFormat(QImage.Format.Format_ARGB32).bits().tobytes()
+        )
+        if same_pixels:
+            unchanged.append(
+                f"{label}: QFontInfo {before_font.family()} -> {after_font.family()}"
+            )
+
+    assert not unchanged, "Widget tidak merender ulang setelah ganti font: " + "; ".join(
+        unchanged
+    )
+
+    window.close()
+    qapp.setFont(original_font)
 
 
 def test_unavailable_saved_font_uses_fallback_without_overwriting_store(
