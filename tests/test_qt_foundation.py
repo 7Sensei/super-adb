@@ -148,10 +148,26 @@ def test_log_panel_uses_fixed_pitch_font_and_wrap_toggle(
 
     manager.set_font_family("Arial")
     manager.apply("light")
-    assert qapp.font().family() == "Arial"
+    assert manager.font_family == "Arial"
     assert QFontInfo(panel.output.font()).fixedPitch()
-    assert "font-family" not in qapp.styleSheet()
+    assert 'font-family: "Arial"' in qapp.styleSheet()
+    assert 'QPlainTextEdit#logOutput' in qapp.styleSheet()
     panel.wrap_toggle.setChecked(False)
     assert panel.output.lineWrapMode() == QPlainTextEdit.LineWrapMode.NoWrap
     panel.wrap_toggle.setChecked(True)
     assert panel.output.lineWrapMode() == QPlainTextEdit.LineWrapMode.WidgetWidth
+
+
+def test_theme_manager_rejects_unavailable_font_without_changing_stylesheet(
+    qapp: QApplication,
+) -> None:
+    manager = ThemeManager(qapp)
+    manager.apply("dark")
+    previous_family = manager.font_family
+    previous_stylesheet = qapp.styleSheet()
+
+    with pytest.raises(ValueError, match="Keluarga font tidak tersedia"):
+        manager.set_font_family("SuperAdbUnavailableFont")
+
+    assert manager.font_family == previous_family
+    assert qapp.styleSheet() == previous_stylesheet

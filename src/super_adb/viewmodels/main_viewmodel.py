@@ -34,6 +34,7 @@ class MainViewModel:
         self.status: Observable[str] = Observable("Siap")
         self.log_line: Signal[LogEntry] = Signal()
         self.log: Signal[str] = Signal()
+        self.lifecycle_event: Signal[str] = Signal()
 
         self._poll_lock = threading.Lock()
         self._poll_in_flight = False
@@ -113,7 +114,25 @@ class MainViewModel:
         self._run_command(["adb", "shell", "dumpsys", "battery"])
 
     def reboot_device(self) -> None:
+        self.lifecycle_event.emit("reboot")
         self._run_command(["adb", "reboot"])
+
+    def reset_adb(self) -> None:
+        if self.is_busy.value:
+            message = "Reset ADB tidak dapat dilakukan saat operasi lain sedang berjalan."
+            self.status.value = message
+            self._emit_log(message, "error")
+            return
+        self.lifecycle_event.emit("reset")
+        self.is_busy.value = True
+        self.status.value = "Mereset ADB"
+        self._emit_log("> Menjalankan: adb kill-server && adb start-server", "command")
+        future = self._executor.submit(self._reset_adb_server)
+        future.add_done_callback(
+            lambda completed: self._dispatcher.post(
+                lambda: self._finish_reset_adb(completed)
+            )
+        )
 
     def list_apps(self) -> None:
         self._run_command(["adb", "shell", "pm", "list", "packages"])
@@ -184,6 +203,33 @@ class MainViewModel:
             self._dispatcher.post(lambda: self._emit_log(line, "output"))
 
         return self._adb_service.execute(command, on_line)
+
+    def _reset_adb_server(self) -> str:
+        def on_line(line: str) -> None:
+            self._dispatcher.post(lambda: self._emit_log(line, "output"))
+
+        stopped = self._adb_service.execute(["adb", "kill-server"], on_line)
+        started = self._adb_service.execute(["adb", "start-server"], on_line)
+        return "\n".join((stopped, started))
+
+    def _finish_reset_adb(self, future: Future[str]) -> None:
+        succeeded = False
+        try:
+            future.result()
+        except AdbError as error:
+            self.status.value = str(error)
+            self._emit_log(f"Error: {error}", "error")
+        except Exception as error:
+            self.status.value = f"Kesalahan sistem: {error}"
+            self._emit_log(f"Terjadi kesalahan sistem: {error}", "error")
+        else:
+            self.status.value = "Selesai"
+            succeeded = True
+        finally:
+            self.is_busy.value = False
+            self._emit_log("-" * 50, "info")
+        if succeeded:
+            self.poll_devices()
 
     def _fetch_devices(self) -> list[Device]:
         output = self._adb_service.execute(["adb", "devices"], lambda line: None)

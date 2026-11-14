@@ -235,6 +235,56 @@ def test_close_shuts_down_owned_executor_without_waiting() -> None:
     assert service.closed
 
 
+def test_reset_adb_restarts_server_and_polls_devices() -> None:
+    service = FakeAdb(output="serial-1\tdevice")
+    viewmodel = make_viewmodel(service)
+    lifecycle_events: list[str] = []
+    viewmodel.lifecycle_event.connect(lifecycle_events.append)
+
+    viewmodel.reset_adb()
+
+    assert service.commands == [
+        ["adb", "kill-server"],
+        ["adb", "start-server"],
+        ["adb", "devices"],
+    ]
+    assert lifecycle_events == ["reset"]
+    assert viewmodel.selected_serial.value == "serial-1"
+    assert viewmodel.is_busy.value is False
+    assert viewmodel.status.value == "Selesai"
+
+
+def test_reset_adb_is_rejected_while_another_operation_is_running() -> None:
+    service = FakeAdb()
+    viewmodel = make_viewmodel(service)
+    lifecycle_events: list[str] = []
+    viewmodel.lifecycle_event.connect(lifecycle_events.append)
+    viewmodel.is_busy.value = True
+
+    viewmodel.reset_adb()
+
+    assert service.commands == []
+    assert lifecycle_events == []
+    assert viewmodel.is_busy.value is True
+    assert viewmodel.status.value == (
+        "Reset ADB tidak dapat dilakukan saat operasi lain sedang berjalan."
+    )
+
+
+def test_reboot_emits_lifecycle_event_before_running_command() -> None:
+    service = FakeAdb()
+    viewmodel = make_viewmodel(service)
+    lifecycle_events: list[str] = []
+    viewmodel.lifecycle_event.connect(lifecycle_events.append)
+    viewmodel._update_devices([Device("serial-1", "device")])
+    viewmodel.select_device("serial-1")
+
+    viewmodel.reboot_device()
+
+    assert lifecycle_events == ["reboot"]
+    assert service.commands[-1] == ["adb", "-s", "serial-1", "reboot"]
+
+
 @pytest.mark.parametrize(
     ("method_name", "argument", "label"),
     [
